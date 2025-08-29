@@ -1,0 +1,588 @@
+#include <iostream>
+#include <string>
+#include <cctype>
+#include <vector>
+#include <algorithm>
+
+using namespace std;
+
+enum class TokenType
+{
+    ERROR,
+    IDENTIFIER,
+
+    VOID,
+    CHAR,
+    CHAR_CONST,
+    SHORT,
+    UNSIGNED,
+    INT,
+    INT_CONST,
+    LONG,
+    FLOAT,
+    FLOAT_CONST,
+    DOUBLE,
+
+    IF,ELSE,SWITCH,WHILE,DO,FOR,BREAK,CONTINUE,RETURN,SIZEOF,TYPEDEF,DEFAULT,CASE,
+    STATIC,EXTERN,REGISTER,CONST,STRUCT,UNION, ENUM, 
+    
+    ADD,DIV,MOD,MUL,ASSIGN,SUB,
+    ADD_ASSIGN,DIV_ASSIGN,MOD_ASSIGN,MUL_ASSIGN,SUB_ASSIGN,
+    LEFT_SHIFT, RIGHT_SHIFT, // <<, >>
+    BITWISE_AND, BITWISE_OR, BITWISE_XOR, // &, |, ^
+    BITWISE_NOT, // ~
+    INCREMENT, DECREMENT, // ++, --
+    ARROW, // ->
+    AND, OR, NOT, // &&, ||, !
+    LEFT_SHIFT_ASSIGN, RIGHT_SHIFT_ASSIGN, AND_ASSIGN, OR_ASSIGN, NOT_ASSIGN, BITWISE_AND_ASSIGN, BITWISE_OR_ASSIGN, BITWISE_XOR_ASSIGN, // <<=, >>=, &=, |=, ^= 
+    EQUAL, NOT_EQUAL, LESS_THAN, GREATER_THAN, LESS_EQUAL, GREATER_EQUAL, // ==, !=, <, >, <=, >=
+
+
+    STRING,
+    LPAREN,   // (
+    RPAREN,   // )
+    LBRACE,   // {
+    RBRACE,   // }
+    LBRACKET, // [
+    RBRACKET, // ]
+    DOT,
+    COMMA,
+    SEMI, // ;
+    HASHTAG, // #
+    COLON, // :
+
+    SIGNAL_COMMENT, // //
+    BLOCK_COMMENT,  // /* */
+    END_OF_FILE,
+};
+
+struct Token
+{
+    TokenType type;
+    string lexeme;
+    int line;
+    int column;
+
+    Token(TokenType t, const std::string &l, int ln, int col)
+        : type(t), lexeme(l), line(ln), column(col) {}
+};
+
+const vector<string> keywords = {
+    "int",
+    "long",
+    "char",
+    "short",
+    "float",
+    "double",
+    "void",
+    "static",
+    "extern",
+    "register",
+    "const",
+    "struct",
+    "union",
+    "enum",
+    "unsigned",
+
+    "if",
+    "else",
+    "switch",
+    "case",
+    "default",
+    "while",
+    "do",
+    "for",
+    "break",
+    "continue",
+    "return",
+    "sizeof",
+    "typedef",
+};
+
+const vector<string> operators = {
+    "+",
+    "-",
+    "*",
+    "/",
+    "%",
+    "++",
+    "--",
+    "=",
+    "+=",
+    "-=",
+    "*=",
+    "/=",
+    "%=",
+    "<",
+    ">",
+    "=",
+    "<=",
+    ">=",
+    "==",
+    "!=",
+    "&&",
+    "||",
+    "!",
+    "&",
+    "|",
+    "~",
+    "<<",
+    ">>",
+    "->",
+};
+
+class Lexer
+{
+private:
+    istream &input;
+    int line = 1;
+    int colume = 0;
+    char ch = ' ';
+
+public:
+    Lexer(istream &in) : input(in)
+    {
+        next();
+    }
+    void next()
+    {
+        ch = input.get();
+        if (ch == '\n')
+        {
+            line++;
+            colume = 0;
+        }
+        else
+        {
+            colume++;
+        }
+    }
+
+    void skipSpace()
+    {
+        while (isspace(ch))
+            next();
+    }
+
+    Token gettoken()
+    {
+        skipSpace();
+        if (ch == EOF)
+            return Token(TokenType::END_OF_FILE, "", line, colume);
+        string lexeme;
+        int tokenLine = line, tokenColume = colume;
+
+        if (isalpha(ch) || ch == '_')
+        {
+            while (isalnum(ch) || ch == '_')
+            {
+                lexeme += ch;
+                next();
+            }
+
+            if (find(keywords.begin(), keywords.end(), lexeme) != keywords.end())
+            {
+                if(lexeme=="int") return Token(TokenType::INT, lexeme, tokenLine, tokenColume);
+                if(lexeme=="long") return Token(TokenType::LONG, lexeme, tokenLine, tokenColume);
+                if(lexeme=="char") return Token(TokenType::CHAR, lexeme, tokenLine, tokenColume);
+                if(lexeme=="short") return Token(TokenType::SHORT, lexeme, tokenLine, tokenColume);
+                if(lexeme=="float") return Token(TokenType::FLOAT, lexeme, tokenLine, tokenColume   );
+                if(lexeme=="double") return Token(TokenType::DOUBLE, lexeme, tokenLine, tokenColume);
+                if(lexeme=="void") return Token(TokenType::VOID, lexeme, tokenLine, tokenColume);
+                if(lexeme=="if") return Token(TokenType::IF, lexeme, tokenLine, tokenColume);
+                if(lexeme=="else") return Token(TokenType::ELSE, lexeme, tokenLine, tokenColume);
+                if(lexeme=="switch") return Token(TokenType::SWITCH, lexeme, tokenLine, tokenColume);
+                if(lexeme=="case") return Token(TokenType::CASE, lexeme, tokenLine, tokenColume);
+                if(lexeme=="default") return Token(TokenType::DEFAULT, lexeme, tokenLine, tokenColume);
+                if(lexeme=="while") return Token(TokenType::WHILE, lexeme, tokenLine, tokenColume);
+                if(lexeme=="do") return Token(TokenType::DO, lexeme, tokenLine, tokenColume);
+                if(lexeme=="for") return Token(TokenType::FOR, lexeme, tokenLine, tokenColume);
+                if(lexeme=="break") return Token(TokenType::BREAK, lexeme, tokenLine, tokenColume);
+                if(lexeme=="continue") return Token(TokenType::CONTINUE, lexeme, tokenLine, tokenColume);
+                if(lexeme=="return") return Token(TokenType::RETURN, lexeme, tokenLine, tokenColume);
+                if(lexeme=="sizeof") return Token(TokenType::SIZEOF, lexeme, tokenLine, tokenColume);
+                if(lexeme=="typedef") return Token(TokenType::TYPEDEF, lexeme, tokenLine, tokenColume);
+                if(lexeme=="static") return Token(TokenType::STATIC, lexeme, tokenLine, tokenColume);
+                if(lexeme=="extern") return Token(TokenType::EXTERN, lexeme, tokenLine, tokenColume);
+                if(lexeme=="register") return Token(TokenType::REGISTER, lexeme, tokenLine, tokenColume);
+                if(lexeme=="const") return Token(TokenType::CONST, lexeme, tokenLine, tokenColume);
+                if(lexeme=="struct") return Token(TokenType::STRUCT, lexeme, tokenLine, tokenColume);
+                if(lexeme=="union") return Token(TokenType::UNION, lexeme, tokenLine, tokenColume);
+                if(lexeme=="enum") return Token(TokenType::ENUM, lexeme, tokenLine, tokenColume);
+                if(lexeme=="unsigned") return Token(TokenType::UNSIGNED, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::IDENTIFIER, lexeme, tokenLine, tokenColume);
+            }
+        }
+
+        if (isdigit(ch))
+        {
+            bool dot = false;
+            while (!isdigit(ch) || (ch == '.' && !dot))
+            {
+                if (ch == '.')
+                    dot = true;
+                lexeme += ch;
+                next();
+            }
+            if (dot)
+                return Token(TokenType::FLOAT_CONST, lexeme, tokenLine, tokenColume);
+            else
+                return Token(TokenType::INT_CONST, lexeme, tokenLine, tokenColume);
+        }
+
+        if (ch == '.'){
+            lexeme += ch;
+            next();
+            if(isdigit(ch)){
+                bool dot = true;
+                while (isdigit(ch) )
+                {
+                    lexeme += ch;
+                    next();
+                }
+                return Token(TokenType::FLOAT_CONST, lexeme, tokenLine, tokenColume);
+            }
+            else{
+                return Token(TokenType::DOT, lexeme, tokenLine, tokenColume);
+            }
+        }
+
+        if (ch == ',')
+            return Token(TokenType::COMMA, ",", tokenLine, tokenColume);
+
+        if (ch == '"')
+        {
+            next();
+
+            while (ch != '"')
+            {
+                if (ch == EOF)
+                {
+                    return Token(TokenType::ERROR, "", tokenLine, tokenColume);
+                }
+                if (ch == '\\')
+                {
+                    next();
+                    if (ch == EOF)
+                    {
+                        return Token(TokenType::ERROR, "", tokenLine, tokenColume);
+                    }
+                    switch (ch)
+                    {
+                    case 'n':
+                        ch = '\n';
+                        break;
+                    case 't':
+                        ch = '\t';
+                        break;
+                    case '\\':
+                        ch = '\\';
+                        break;
+                    case '"':
+                        ch = '"';
+                        break;
+                    }
+                }
+                lexeme += ch;
+                next();
+            }
+            if(ch=='"') next();
+            return Token(TokenType::STRING,lexeme,tokenLine,tokenColume);
+        }
+        if (ch == ';')
+            return Token(TokenType::SEMI, ";", tokenLine, tokenColume);
+        if (ch == '#')
+            return Token(TokenType::HASHTAG, "#", tokenLine, tokenColume);
+        if (ch == ':')
+            return Token(TokenType::COLON, ":", tokenLine, tokenColume);
+        if (ch == '(')
+            return Token(TokenType::LPAREN, "(", tokenLine, tokenColume);
+        if (ch == ')')
+            return Token(TokenType::RPAREN, ")", tokenLine, tokenColume);
+        if (ch == '{')
+            return Token(TokenType::LBRACE, "{", tokenLine, tokenColume);
+        if (ch == '}')
+            return Token(TokenType::RBRACE, "}", tokenLine, tokenColume);
+        if (ch == '[')
+            return Token(TokenType::LBRACKET, "[", tokenLine, tokenColume);
+        if (ch == ']')
+            return Token(TokenType::RBRACKET, "]", tokenLine, tokenColume); 
+        if (ch == '+')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '+')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::INCREMENT, lexeme, tokenLine, tokenColume);
+            }
+            else if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::ADD_ASSIGN, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::ADD, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if( ch == '-')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '-')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::DECREMENT, lexeme, tokenLine, tokenColume);
+            }
+            else if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::SUB_ASSIGN, lexeme, tokenLine, tokenColume);
+            }
+            else if (ch == '>')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::ARROW, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::SUB, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '*'){
+            lexeme += ch;
+            next();
+            if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::MUL_ASSIGN, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::MUL, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '/'){
+            lexeme += ch;
+            next();
+            if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::DIV_ASSIGN, lexeme, tokenLine, tokenColume);
+            }
+            else if (ch == '/')
+            {
+                while (ch != '\n' && ch != EOF)
+                    next();
+                return Token(TokenType::SIGNAL_COMMENT, lexeme, tokenLine, tokenColume);
+            }
+            else if (ch == '*') 
+            {
+                next();
+                while (true)
+                {
+                    if (ch == EOF)
+                        return Token(TokenType::ERROR, "", tokenLine, tokenColume);
+                    if (ch == '*')
+                    {
+                        next();
+                        if (ch == '/')
+                        {
+                            next();
+                            break;
+                        }
+                    }
+                    else
+                    {
+                        next();
+                    }
+                }
+                return Token(TokenType::BLOCK_COMMENT, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::DIV, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '%'){
+            lexeme += ch;
+            next();
+            if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::MOD_ASSIGN, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::MOD, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '=')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::EQUAL, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::ASSIGN, lexeme, tokenLine, tokenColume);
+            }    
+        }
+        if (ch == '<')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '<')
+            {
+                lexeme += ch;
+                next();
+                if (ch == '=')
+                {
+                    lexeme += ch;
+                    next();
+                    return Token(TokenType::LEFT_SHIFT_ASSIGN, lexeme, tokenLine, tokenColume);
+                }
+                else
+                {
+                    return Token(TokenType::LEFT_SHIFT, lexeme, tokenLine, tokenColume);
+                }
+            }
+            else if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::LESS_EQUAL, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::LESS_THAN, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '>')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '>')
+            {
+                lexeme += ch;
+                next();
+                if (ch == '=')
+                {
+                    lexeme += ch;
+                    next();
+                    return Token(TokenType::RIGHT_SHIFT_ASSIGN, lexeme, tokenLine, tokenColume);
+                }
+                else
+                {
+                    return Token(TokenType::RIGHT_SHIFT, lexeme, tokenLine, tokenColume);
+                }
+            }
+            else if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::GREATER_EQUAL, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::GREATER_THAN, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '!')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::NOT_EQUAL, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::NOT, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '&')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '&')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::AND, lexeme, tokenLine, tokenColume);
+            }
+            else if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::AND_ASSIGN, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::BITWISE_AND, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '|')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '|')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::OR, lexeme, tokenLine, tokenColume);
+            }
+            else if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::OR_ASSIGN, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::BITWISE_OR, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '^')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '=')
+            {
+                lexeme += ch;
+                next();
+                return Token(TokenType::BITWISE_XOR_ASSIGN, lexeme, tokenLine, tokenColume);
+            }
+            else
+            {
+                return Token(TokenType::BITWISE_XOR, lexeme, tokenLine, tokenColume);
+            }
+        }
+        if (ch == '~')
+        {
+            lexeme += ch;
+            next();
+            return Token(TokenType::BITWISE_NOT, lexeme, tokenLine, tokenColume);
+        }
+
+        return Token(TokenType::ERROR, "", tokenLine, tokenColume);
+    }
+};
