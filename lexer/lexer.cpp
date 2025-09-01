@@ -23,20 +23,64 @@ enum class TokenType
     FLOAT_CONST,
     DOUBLE,
 
-    IF,ELSE,SWITCH,WHILE,DO,FOR,BREAK,CONTINUE,RETURN,SIZEOF,TYPEDEF,DEFAULT,CASE,
-    STATIC,EXTERN,REGISTER,CONST,STRUCT,UNION, ENUM, 
-    
-    ADD,DIV,MOD,MUL,ASSIGN,SUB,
-    ADD_ASSIGN,DIV_ASSIGN,MOD_ASSIGN,MUL_ASSIGN,SUB_ASSIGN,
-    LEFT_SHIFT, RIGHT_SHIFT, // <<, >>
-    BITWISE_AND, BITWISE_OR, BITWISE_XOR, // &, |, ^
-    BITWISE_NOT, // ~
-    INCREMENT, DECREMENT, // ++, --
-    ARROW, // ->
-    AND, OR, NOT, // &&, ||, !
-    LEFT_SHIFT_ASSIGN, RIGHT_SHIFT_ASSIGN, AND_ASSIGN, OR_ASSIGN, NOT_ASSIGN, BITWISE_AND_ASSIGN, BITWISE_OR_ASSIGN, BITWISE_XOR_ASSIGN, // <<=, >>=, &=, |=, ^= 
-    EQUAL, NOT_EQUAL, LESS_THAN, GREATER_THAN, LESS_EQUAL, GREATER_EQUAL, // ==, !=, <, >, <=, >=
+    IF,
+    ELSE,
+    SWITCH,
+    WHILE,
+    DO,
+    FOR,
+    BREAK,
+    CONTINUE,
+    RETURN,
+    SIZEOF,
+    TYPEDEF,
+    DEFAULT,
+    CASE,
+    STATIC,
+    EXTERN,
+    REGISTER,
+    CONST,
+    STRUCT,
+    UNION,
+    ENUM,
 
+    ADD,
+    DIV,
+    MOD,
+    MUL,
+    ASSIGN,
+    SUB,
+    ADD_ASSIGN,
+    DIV_ASSIGN,
+    MOD_ASSIGN,
+    MUL_ASSIGN,
+    SUB_ASSIGN,
+    LEFT_SHIFT,
+    RIGHT_SHIFT, // <<, >>
+    BITWISE_AND,
+    BITWISE_OR,
+    BITWISE_XOR, // &, |, ^
+    BITWISE_NOT, // ~
+    INCREMENT,
+    DECREMENT, // ++, --
+    ARROW,     // ->
+    AND,
+    OR,
+    NOT, // &&, ||, !
+    LEFT_SHIFT_ASSIGN,
+    RIGHT_SHIFT_ASSIGN,
+    AND_ASSIGN,
+    OR_ASSIGN,
+    NOT_ASSIGN,
+    BITWISE_AND_ASSIGN,
+    BITWISE_OR_ASSIGN,
+    BITWISE_XOR_ASSIGN, // <<=, >>=, &=, |=, ^=
+    EQUAL,
+    NOT_EQUAL,
+    LESS_THAN,
+    GREATER_THAN,
+    LESS_EQUAL,
+    GREATER_EQUAL, // ==, !=, <, >, <=, >=
 
     STRING,
     LPAREN,   // (
@@ -47,15 +91,32 @@ enum class TokenType
     RBRACKET, // ]
     DOT,
     COMMA,
-    SEMI, // ;
+    SEMI,    // ;
     HASHTAG, // #
-    COLON, // :
+    COLON,   // :
 
     SIGNAL_COMMENT, // //
     BLOCK_COMMENT,  // /* */
     END_OF_FILE,
 };
-
+enum class ASTNodeType
+{
+    Program,      // 程序
+    ExtDefList,   // 外部定义列表
+    ExtDef,       // 外部定义
+    TypeSpec,     // 类型说明符
+    FunctionDef,  // 函数定义
+    VarDecl,      // 变量声明
+    CompoundStmt, // 语句块 { ... }
+    IfStmt,       // if 语句
+    WhileStmt,    // while 语句
+    ReturnStmt,   // return 语句
+    BinaryExpr,   // 二元表达式
+    UnaryExpr,    // 一元表达式
+    Literal,      // 常量
+    Identifier,   // 标识符
+    CallExpr      // 函数调用
+};
 struct Token
 {
     TokenType type;
@@ -65,6 +126,46 @@ struct Token
 
     Token(TokenType t, const std::string &l, int ln, int col)
         : type(t), lexeme(l), line(ln), column(col) {}
+};
+
+class ASTNode
+{
+public:
+    ASTNodeType type;
+    ASTNode(ASTNodeType t) : type(t) {}
+    virtual ~ASTNode() = default;
+    virtual void print(int indent = 0) const = 0;
+};
+
+class programNode : public ASTNode
+{
+public:
+    vector<ASTNode *> extdeflists;
+    programNode() : ASTNode(ASTNodeType::Program) {}
+    ~programNode()
+    {
+        for (auto def : extdeflists)
+        {
+            delete def;
+        }
+    }
+    void addExtdef(ASTNode *def)
+    {
+        extdeflists.push_back(def);
+    }
+    void print(int indent = 0) const override
+    {
+        std::cout << std::string(indent, ' ') << "Program\n";
+        for (auto def : extdeflists)
+        {
+            def->print(indent + 2);
+        }
+    }
+};
+
+class extVarDecl : public ASTNode
+{
+public:
 };
 
 const vector<string> keywords = {
@@ -131,6 +232,23 @@ const vector<string> operators = {
     "->",
 };
 
+inline std::string tokenTypeToString(TokenType type)
+{
+    switch (type)
+    {
+    case TokenType::MUL:
+        return "MUL";
+    case TokenType::DIV:
+        return "DIV";
+    case TokenType::LPAREN:
+        return "LPAREN";
+    case TokenType::RPAREN:
+        return "RPAREN";
+    default:
+        return "UNKNOWN";
+    }
+}
+
 class Lexer
 {
 private:
@@ -182,34 +300,62 @@ public:
 
             if (find(keywords.begin(), keywords.end(), lexeme) != keywords.end())
             {
-                if(lexeme=="int") return Token(TokenType::INT, lexeme, tokenLine, tokenColume);
-                if(lexeme=="long") return Token(TokenType::LONG, lexeme, tokenLine, tokenColume);
-                if(lexeme=="char") return Token(TokenType::CHAR, lexeme, tokenLine, tokenColume);
-                if(lexeme=="short") return Token(TokenType::SHORT, lexeme, tokenLine, tokenColume);
-                if(lexeme=="float") return Token(TokenType::FLOAT, lexeme, tokenLine, tokenColume   );
-                if(lexeme=="double") return Token(TokenType::DOUBLE, lexeme, tokenLine, tokenColume);
-                if(lexeme=="void") return Token(TokenType::VOID, lexeme, tokenLine, tokenColume);
-                if(lexeme=="if") return Token(TokenType::IF, lexeme, tokenLine, tokenColume);
-                if(lexeme=="else") return Token(TokenType::ELSE, lexeme, tokenLine, tokenColume);
-                if(lexeme=="switch") return Token(TokenType::SWITCH, lexeme, tokenLine, tokenColume);
-                if(lexeme=="case") return Token(TokenType::CASE, lexeme, tokenLine, tokenColume);
-                if(lexeme=="default") return Token(TokenType::DEFAULT, lexeme, tokenLine, tokenColume);
-                if(lexeme=="while") return Token(TokenType::WHILE, lexeme, tokenLine, tokenColume);
-                if(lexeme=="do") return Token(TokenType::DO, lexeme, tokenLine, tokenColume);
-                if(lexeme=="for") return Token(TokenType::FOR, lexeme, tokenLine, tokenColume);
-                if(lexeme=="break") return Token(TokenType::BREAK, lexeme, tokenLine, tokenColume);
-                if(lexeme=="continue") return Token(TokenType::CONTINUE, lexeme, tokenLine, tokenColume);
-                if(lexeme=="return") return Token(TokenType::RETURN, lexeme, tokenLine, tokenColume);
-                if(lexeme=="sizeof") return Token(TokenType::SIZEOF, lexeme, tokenLine, tokenColume);
-                if(lexeme=="typedef") return Token(TokenType::TYPEDEF, lexeme, tokenLine, tokenColume);
-                if(lexeme=="static") return Token(TokenType::STATIC, lexeme, tokenLine, tokenColume);
-                if(lexeme=="extern") return Token(TokenType::EXTERN, lexeme, tokenLine, tokenColume);
-                if(lexeme=="register") return Token(TokenType::REGISTER, lexeme, tokenLine, tokenColume);
-                if(lexeme=="const") return Token(TokenType::CONST, lexeme, tokenLine, tokenColume);
-                if(lexeme=="struct") return Token(TokenType::STRUCT, lexeme, tokenLine, tokenColume);
-                if(lexeme=="union") return Token(TokenType::UNION, lexeme, tokenLine, tokenColume);
-                if(lexeme=="enum") return Token(TokenType::ENUM, lexeme, tokenLine, tokenColume);
-                if(lexeme=="unsigned") return Token(TokenType::UNSIGNED, lexeme, tokenLine, tokenColume);
+                if (lexeme == "int")
+                    return Token(TokenType::INT, lexeme, tokenLine, tokenColume);
+                if (lexeme == "long")
+                    return Token(TokenType::LONG, lexeme, tokenLine, tokenColume);
+                if (lexeme == "char")
+                    return Token(TokenType::CHAR, lexeme, tokenLine, tokenColume);
+                if (lexeme == "short")
+                    return Token(TokenType::SHORT, lexeme, tokenLine, tokenColume);
+                if (lexeme == "float")
+                    return Token(TokenType::FLOAT, lexeme, tokenLine, tokenColume);
+                if (lexeme == "double")
+                    return Token(TokenType::DOUBLE, lexeme, tokenLine, tokenColume);
+                if (lexeme == "void")
+                    return Token(TokenType::VOID, lexeme, tokenLine, tokenColume);
+                if (lexeme == "if")
+                    return Token(TokenType::IF, lexeme, tokenLine, tokenColume);
+                if (lexeme == "else")
+                    return Token(TokenType::ELSE, lexeme, tokenLine, tokenColume);
+                if (lexeme == "switch")
+                    return Token(TokenType::SWITCH, lexeme, tokenLine, tokenColume);
+                if (lexeme == "case")
+                    return Token(TokenType::CASE, lexeme, tokenLine, tokenColume);
+                if (lexeme == "default")
+                    return Token(TokenType::DEFAULT, lexeme, tokenLine, tokenColume);
+                if (lexeme == "while")
+                    return Token(TokenType::WHILE, lexeme, tokenLine, tokenColume);
+                if (lexeme == "do")
+                    return Token(TokenType::DO, lexeme, tokenLine, tokenColume);
+                if (lexeme == "for")
+                    return Token(TokenType::FOR, lexeme, tokenLine, tokenColume);
+                if (lexeme == "break")
+                    return Token(TokenType::BREAK, lexeme, tokenLine, tokenColume);
+                if (lexeme == "continue")
+                    return Token(TokenType::CONTINUE, lexeme, tokenLine, tokenColume);
+                if (lexeme == "return")
+                    return Token(TokenType::RETURN, lexeme, tokenLine, tokenColume);
+                if (lexeme == "sizeof")
+                    return Token(TokenType::SIZEOF, lexeme, tokenLine, tokenColume);
+                if (lexeme == "typedef")
+                    return Token(TokenType::TYPEDEF, lexeme, tokenLine, tokenColume);
+                if (lexeme == "static")
+                    return Token(TokenType::STATIC, lexeme, tokenLine, tokenColume);
+                if (lexeme == "extern")
+                    return Token(TokenType::EXTERN, lexeme, tokenLine, tokenColume);
+                if (lexeme == "register")
+                    return Token(TokenType::REGISTER, lexeme, tokenLine, tokenColume);
+                if (lexeme == "const")
+                    return Token(TokenType::CONST, lexeme, tokenLine, tokenColume);
+                if (lexeme == "struct")
+                    return Token(TokenType::STRUCT, lexeme, tokenLine, tokenColume);
+                if (lexeme == "union")
+                    return Token(TokenType::UNION, lexeme, tokenLine, tokenColume);
+                if (lexeme == "enum")
+                    return Token(TokenType::ENUM, lexeme, tokenLine, tokenColume);
+                if (lexeme == "unsigned")
+                    return Token(TokenType::UNSIGNED, lexeme, tokenLine, tokenColume);
             }
             else
             {
@@ -233,19 +379,22 @@ public:
                 return Token(TokenType::INT_CONST, lexeme, tokenLine, tokenColume);
         }
 
-        if (ch == '.'){
+        if (ch == '.')
+        {
             lexeme += ch;
             next();
-            if(isdigit(ch)){
+            if (isdigit(ch))
+            {
                 bool dot = true;
-                while (isdigit(ch) )
+                while (isdigit(ch))
                 {
                     lexeme += ch;
                     next();
                 }
                 return Token(TokenType::FLOAT_CONST, lexeme, tokenLine, tokenColume);
             }
-            else{
+            else
+            {
                 return Token(TokenType::DOT, lexeme, tokenLine, tokenColume);
             }
         }
@@ -289,8 +438,9 @@ public:
                 lexeme += ch;
                 next();
             }
-            if(ch=='"') next();
-            return Token(TokenType::STRING,lexeme,tokenLine,tokenColume);
+            if (ch == '"')
+                next();
+            return Token(TokenType::STRING, lexeme, tokenLine, tokenColume);
         }
         if (ch == ';')
             return Token(TokenType::SEMI, ";", tokenLine, tokenColume);
@@ -309,7 +459,7 @@ public:
         if (ch == '[')
             return Token(TokenType::LBRACKET, "[", tokenLine, tokenColume);
         if (ch == ']')
-            return Token(TokenType::RBRACKET, "]", tokenLine, tokenColume); 
+            return Token(TokenType::RBRACKET, "]", tokenLine, tokenColume);
         if (ch == '+')
         {
             lexeme += ch;
@@ -331,7 +481,7 @@ public:
                 return Token(TokenType::ADD, lexeme, tokenLine, tokenColume);
             }
         }
-        if( ch == '-')
+        if (ch == '-')
         {
             lexeme += ch;
             next();
@@ -358,7 +508,8 @@ public:
                 return Token(TokenType::SUB, lexeme, tokenLine, tokenColume);
             }
         }
-        if (ch == '*'){
+        if (ch == '*')
+        {
             lexeme += ch;
             next();
             if (ch == '=')
@@ -372,7 +523,8 @@ public:
                 return Token(TokenType::MUL, lexeme, tokenLine, tokenColume);
             }
         }
-        if (ch == '/'){
+        if (ch == '/')
+        {
             lexeme += ch;
             next();
             if (ch == '=')
@@ -387,7 +539,7 @@ public:
                     next();
                 return Token(TokenType::SIGNAL_COMMENT, lexeme, tokenLine, tokenColume);
             }
-            else if (ch == '*') 
+            else if (ch == '*')
             {
                 next();
                 while (true)
@@ -415,7 +567,8 @@ public:
                 return Token(TokenType::DIV, lexeme, tokenLine, tokenColume);
             }
         }
-        if (ch == '%'){
+        if (ch == '%')
+        {
             lexeme += ch;
             next();
             if (ch == '=')
@@ -442,7 +595,7 @@ public:
             else
             {
                 return Token(TokenType::ASSIGN, lexeme, tokenLine, tokenColume);
-            }    
+            }
         }
         if (ch == '<')
         {
@@ -584,5 +737,49 @@ public:
         }
 
         return Token(TokenType::ERROR, "", tokenLine, tokenColume);
+    }
+};
+
+class Parser
+{
+private:
+    Lexer lexer;
+    Token currentToken;
+
+public:
+    Parser(istream &in) : lexer(in), currentToken(lexer.gettoken()) {};
+    void advance()
+    {
+        currentToken = lexer.gettoken();
+    }
+    void eat(TokenType expected)
+    {
+        if (currentToken.type == expected)
+        {
+            advance();
+        }
+        else
+        {
+            throw std::runtime_error(
+                "Syntax error at line " + std::to_string(currentToken.line) +
+                ", column " + std::to_string(currentToken.column) +
+                ": expected " + tokenTypeToString(expected) +
+                ", got " + tokenTypeToString(currentToken.type));
+        }
+    }
+    ASTNode *program()
+    {
+        return extdeflist();
+    }
+
+    ASTNode *extdeflist()
+    {
+        auto list = extdef();
+        while (currentToken.type != TokenType::END_OF_FILE)
+        {
+        }
+    }
+    ASTNode *extdef()
+    {
     }
 };
