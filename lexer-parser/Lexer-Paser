@@ -3,6 +3,7 @@
 #include <cctype>
 #include <vector>
 #include <algorithm>
+#include <ASTNodes>
 
 using namespace std;
 
@@ -99,24 +100,7 @@ enum class TokenType
     BLOCK_COMMENT,  // /* */
     END_OF_FILE,
 };
-enum class ASTNodeType
-{
-    Program,      // 程序
-    ExtDefList,   // 外部定义列表
-    ExtDef,       // 外部定义
-    TypeSpec,     // 类型说明符
-    FunctionDef,  // 函数定义
-    VarDecl,      // 变量声明
-    CompoundStmt, // 语句块 { ... }
-    IfStmt,       // if 语句
-    WhileStmt,    // while 语句
-    ReturnStmt,   // return 语句
-    BinaryExpr,   // 二元表达式
-    UnaryExpr,    // 一元表达式
-    Literal,      // 常量
-    Identifier,   // 标识符
-    CallExpr      // 函数调用
-};
+
 struct Token
 {
     TokenType type;
@@ -126,46 +110,6 @@ struct Token
 
     Token(TokenType t, const std::string &l, int ln, int col)
         : type(t), lexeme(l), line(ln), column(col) {}
-};
-
-class ASTNode
-{
-public:
-    ASTNodeType type;
-    ASTNode(ASTNodeType t) : type(t) {}
-    virtual ~ASTNode() = default;
-    virtual void print(int indent = 0) const = 0;
-};
-
-class programNode : public ASTNode
-{
-public:
-    vector<ASTNode *> extdeflists;
-    programNode() : ASTNode(ASTNodeType::Program) {}
-    ~programNode()
-    {
-        for (auto def : extdeflists)
-        {
-            delete def;
-        }
-    }
-    void addExtdef(ASTNode *def)
-    {
-        extdeflists.push_back(def);
-    }
-    void print(int indent = 0) const override
-    {
-        std::cout << std::string(indent, ' ') << "Program\n";
-        for (auto def : extdeflists)
-        {
-            def->print(indent + 2);
-        }
-    }
-};
-
-class extVarDecl : public ASTNode
-{
-public:
 };
 
 const vector<string> keywords = {
@@ -248,6 +192,7 @@ inline std::string tokenTypeToString(TokenType type)
         return "UNKNOWN";
     }
 }
+
 
 class Lexer
 {
@@ -769,15 +714,12 @@ public:
     }
     ASTNode *program()
     {
-        return extdeflist();
+        
     }
 
     ASTNode *extdeflist()
     {
-        auto list = extdef();
-        while (currentToken.type != TokenType::END_OF_FILE)
-        {
-        }
+        
     }
     ASTNode *extdef()
     {
