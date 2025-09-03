@@ -829,3 +829,37 @@ public:
         }
     }
 };
+
+/*if (currentToken.type == TokenType::VOID || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::INT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::STRUCT || currentToken.type == TokenType::UNION || currentToken.type == TokenType::ENUM)
+        {
+            typeName.push_back(currentToken.lexeme);
+            advance();
+            if (currentToken.type == TokenType::IDENTIFIER)
+            {
+                string varName = currentToken.lexeme;
+                advance();
+                if (currentToken.type == TokenType::LPAREN)
+                {
+                    // Function definition or declaration
+                }
+                else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::LBRACKET)
+                {
+                    // Variable declaration
+                }
+                else
+                {
+                    throw std::runtime_error(
+                        "Syntax error at line " + std::to_string(currentToken.line) +
+                        ", column " + std::to_string(currentToken.column) +
+                        ": unexpected token " + tokenTypeToString(currentToken.type));
+                }
+            }
+        
+            else
+            {
+                throw std::runtime_error(
+                    "Syntax error at line " + std::to_string(currentToken.line) +
+                    ", column " + std::to_string(currentToken.column) +
+                    ": expected IDENTIFIER, got " + tokenTypeToString(currentToken.type));
+            }
+        }*/

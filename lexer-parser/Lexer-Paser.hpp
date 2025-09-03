@@ -3,7 +3,7 @@
 #include <cctype>
 #include <vector>
 #include <algorithm>
-#include <ASTNodes>
+#include "ASTNodes.hpp"
 
 using namespace std;
 
@@ -841,6 +841,7 @@ enum class TokenType
     CHAR_CONST,
     SHORT,
     UNSIGNED,
+    SIGNED,
     INT,
     INT_CONST,
     LONG,
@@ -920,9 +921,10 @@ enum class TokenType
     RBRACKET, // ]
     DOT,
     COMMA,
-    SEMI,    // ;
-    HASHTAG, // #
-    COLON,   // :
+    SEMI,      // ;
+    HASHTAG,   // #
+    COLON,     // :
+    QUESTMARK, // ?
 
     SIGNAL_COMMENT, // //
     BLOCK_COMMENT,  // /* */
@@ -940,36 +942,39 @@ struct Token
         : type(t), lexeme(l), line(ln), column(col) {}
 };
 
-const vector<string> keywords = {
-    "int",
-    "long",
-    "char",
-    "short",
-    "float",
-    "double",
-    "void",
-    "static",
-    "extern",
-    "register",
-    "const",
-    "struct",
-    "union",
-    "enum",
-    "unsigned",
-
-    "if",
-    "else",
-    "switch",
-    "case",
-    "default",
-    "while",
-    "do",
-    "for",
-    "break",
-    "continue",
-    "return",
-    "sizeof",
-    "typedef",
+static const unordered_map<string, TokenType> keywordMap = {
+    {"int", TokenType::INT},
+    {"long", TokenType::LONG},
+    {"char", TokenType::CHAR},
+    {"short", TokenType::SHORT},
+    {"float", TokenType::FLOAT},
+    {"double", TokenType::DOUBLE},
+    {"void", TokenType::VOID},
+    {"if", TokenType::IF},
+    {"else", TokenType::ELSE},
+    {"switch", TokenType::SWITCH},
+    {"case", TokenType::CASE},
+    {"default", TokenType::DEFAULT},
+    {"while", TokenType::WHILE},
+    {"do", TokenType::DO},
+    {"for", TokenType::FOR},
+    {"break", TokenType::BREAK},
+    {"continue", TokenType::CONTINUE},
+    {"return", TokenType::RETURN},
+    {"sizeof", TokenType::SIZEOF},
+    {"typedef", TokenType::TYPEDEF},
+    {"static", TokenType::STATIC},
+    {"extern", TokenType::EXTERN},
+    {"register", TokenType::REGISTER},
+    {"const", TokenType::CONST},
+    {"struct", TokenType::STRUCT},
+    {"union", TokenType::UNION},
+    {"enum", TokenType::ENUM},
+    {"unsigned", TokenType::UNSIGNED},
+    {"signed", TokenType::SIGNED},
+    {"include", TokenType::INCLUDE},
+    {"define", TokenType::DEFINE},
+    {"undef", TokenType::UNDEF},
 };
 
 const vector<string> operators = {
@@ -1016,6 +1021,124 @@ inline std::string tokenTypeToString(TokenType type)
         return "LPAREN";
     case TokenType::RPAREN:
         return "RPAREN";
+    case TokenType::SEMI:
+        return "SEMI";
+    case TokenType::IDENTIFIER:
+        return "IDENTIFIER";
+    case TokenType::INT:
+        return "INT";
+    case TokenType::FLOAT:
+        return "FLOAT";
+    case TokenType::STRING:
+        return "STRING";
+    case TokenType::END_OF_FILE:
+        return "END_OF_FILE";
+    case TokenType::ERROR:
+        return "ERROR";
+    case TokenType::HASHTAG:
+        return "HASHTAG";
+    case TokenType::COMMA:
+        return "COMMA";
+    case TokenType::COLON:
+        return "COLON";
+    case TokenType::LBRACE:
+        return "LBRACE";
+    case TokenType::RBRACE:
+        return "RBRACE";
+    case TokenType::LBRACKET:
+        return "LBRACKET";
+    case TokenType::RBRACKET:
+        return "RBRACKET";
+    case TokenType::CHAR:
+        return "CHAR";
+    case TokenType::CHAR_CONST:
+        return "CHAR_CONST";
+    case TokenType::SHORT:
+        return "SHORT";
+    case TokenType::UNSIGNED:
+        return "UNSIGNED";
+    case TokenType::SIGNED:
+        return "SIGNED";
+    case TokenType::LONG:
+        return "LONG";
+    case TokenType::DOUBLE:
+        return "DOUBLE";
+    case TokenType::VOID:
+        return "VOID";
+    case TokenType::INT_CONST:
+        return "INT_CONST";
+    case TokenType::FLOAT_CONST:
+        return "FLOAT_CONST";
+    case TokenType::IF:
+        return "IF";
+    case TokenType::ELSE:
+        return "ELSE";
+    case TokenType::SWITCH:
+        return "SWITCH";
+    case TokenType::WHILE:
+        return "WHILE";
+    case TokenType::DO:
+        return "DO";
+    case TokenType::FOR:
+        return "FOR";
+    case TokenType::BREAK:
+        return "BREAK";
+    case TokenType::CONTINUE:
+        return "CONTINUE";
+    case TokenType::RETURN:
+        return "RETURN";
+    case TokenType::SIZEOF:
+        return "SIZEOF";
+    case TokenType::TYPEDEF:
+        return "TYPEDEF";
+    case TokenType::DEFAULT:
+        return "DEFAULT";
+    case TokenType::CASE:
+        return "CASE";
+    case TokenType::STATIC:
+        return "STATIC";
+    case TokenType::EXTERN:
+        return "EXTERN";
+    case TokenType::REGISTER:
+        return "REGISTER";
+    case TokenType::CONST:
+        return "CONST";
+    case TokenType::STRUCT:
+        return "STRUCT";
+    case TokenType::UNION:
+        return "UNION";
+    case TokenType::ENUM:
+        return "ENUM";
+    case TokenType::INCLUDE:
+        return "INCLUDE";
+    case TokenType::DEFINE:
+        return "DEFINE";
+    case TokenType::UNDEF:
+        return "UNDEF";
+    case TokenType::ADD:
+        return "ADD";
+    case TokenType::SUB:
+        return "SUB";
+    case TokenType::ASSIGN:
+        return "ASSIGN";
+    case TokenType::ADD_ASSIGN:
+        return "ADD_ASSIGN";
+    case TokenType::SUB_ASSIGN:
+        return "SUB_ASSIGN";
+    case TokenType::MUL_ASSIGN:
+        return "MUL_ASSIGN";
+    case TokenType::DIV_ASSIGN:
+        return "DIV_ASSIGN";
+    case TokenType::MOD_ASSIGN:
+        return "MOD_ASSIGN";
+    case TokenType::LEFT_SHIFT:
+        return "LEFT_SHIFT";
+    case TokenType::RIGHT_SHIFT:
+        return "RIGHT_SHIFT";
+    case TokenType::BITWISE_AND:
+        return "BITWISE_AND";
+    case TokenType::BITWISE_OR:
+        return "BITWISE_OR";
     default:
         return "UNKNOWN";
     }
@@ -1026,13 +1149,20 @@ class Lexer
 private:
     istream &input;
     int line = 1;
-    int colume = 0;
+    int column = 0;
     char ch = ' ';
 
 public:
     Lexer(istream &in) : input(in)
     {
-        next();
+        if (!input.eof())
+        {
+            next();
+        }
+        else
+        {
+            ch = EOF;
+        }
     }
     void next()
     {
@@ -1040,11 +1170,11 @@ public:
         if (ch == '\n')
         {
             line++;
-            colume = 0;
+            column = 0;
         }
         else
         {
-            colume++;
+            column++;
         }
     }
 
@@ -1058,9 +1188,9 @@ public:
     {
         skipSpace();
         if (ch == EOF)
-            return Token(TokenType::END_OF_FILE, "", line, colume);
+            return Token(TokenType::END_OF_FILE, "", line, column);
         string lexeme;
-        int tokenLine = line, tokenColume = colume;
+        int tokenLine = line, tokenColumn = column;
 
         if (isalpha(ch) || ch == '_')
         {
@@ -1069,94 +1199,75 @@ public:
                 lexeme += ch;
                 next();
             }
-
-            if (find(keywords.begin(), keywords.end(), lexeme) != keywords.end())
+            auto it = keywordMap.find(lexeme);
+            if (it != keywordMap.end())
             {
-                if (lexeme == "int")
-                    return Token(TokenType::INT, lexeme, tokenLine, tokenColume);
-                if (lexeme == "long")
-                    return Token(TokenType::LONG, lexeme, tokenLine, tokenColume);
-                if (lexeme == "char")
-                    return Token(TokenType::CHAR, lexeme, tokenLine, tokenColume);
-                if (lexeme == "short")
-                    return Token(TokenType::SHORT, lexeme, tokenLine, tokenColume);
-                if (lexeme == "float")
-                    return Token(TokenType::FLOAT, lexeme, tokenLine, tokenColume);
-                if (lexeme == "double")
-                    return Token(TokenType::DOUBLE, lexeme, tokenLine, tokenColume);
-                if (lexeme == "void")
-                    return Token(TokenType::VOID, lexeme, tokenLine, tokenColume);
-                if (lexeme == "if")
-                    return Token(TokenType::IF, lexeme, tokenLine, tokenColume);
-                if (lexeme == "else")
-                    return Token(TokenType::ELSE, lexeme, tokenLine, tokenColume);
-                if (lexeme == "switch")
-                    return Token(TokenType::SWITCH, lexeme, tokenLine, tokenColume);
-                if (lexeme == "case")
-                    return Token(TokenType::CASE, lexeme, tokenLine, tokenColume);
-                if (lexeme == "default")
-                    return Token(TokenType::DEFAULT, lexeme, tokenLine, tokenColume);
-                if (lexeme == "while")
-                    return Token(TokenType::WHILE, lexeme, tokenLine, tokenColume);
-                if (lexeme == "do")
-                    return Token(TokenType::DO, lexeme, tokenLine, tokenColume);
-                if (lexeme == "for")
-                    return Token(TokenType::FOR, lexeme, tokenLine, tokenColume);
-                if (lexeme == "break")
-                    return Token(TokenType::BREAK, lexeme, tokenLine, tokenColume);
-                if (lexeme == "continue")
-                    return Token(TokenType::CONTINUE, lexeme, tokenLine, tokenColume);
-                if (lexeme == "return")
-                    return Token(TokenType::RETURN, lexeme, tokenLine, tokenColume);
-                if (lexeme == "sizeof")
-                    return Token(TokenType::SIZEOF, lexeme, tokenLine, tokenColume);
-                if (lexeme == "typedef")
-                    return Token(TokenType::TYPEDEF, lexeme, tokenLine, tokenColume);
-                if (lexeme == "static")
-                    return Token(TokenType::STATIC, lexeme, tokenLine, tokenColume);
-                if (lexeme == "extern")
-                    return Token(TokenType::EXTERN, lexeme, tokenLine, tokenColume);
-                if (lexeme == "register")
-                    return Token(TokenType::REGISTER, lexeme, tokenLine, tokenColume);
-                if (lexeme == "const")
-                    return Token(TokenType::CONST, lexeme, tokenLine, tokenColume);
-                if (lexeme == "struct")
-                    return Token(TokenType::STRUCT, lexeme, tokenLine, tokenColume);
-                if (lexeme == "union")
-                    return Token(TokenType::UNION, lexeme, tokenLine, tokenColume);
-                if (lexeme == "enum")
-                    return Token(TokenType::ENUM, lexeme, tokenLine, tokenColume);
-                if (lexeme == "unsigned")
-                    return Token(TokenType::UNSIGNED, lexeme, tokenLine, tokenColume);
-                if (lexeme == "include")
-                    return Token(TokenType::INCLUDE, lexeme, tokenLine, tokenColume);
-                if (lexeme == "define")
-                    return Token(TokenType::DEFINE, lexeme, tokenLine, tokenColume);
-                if (lexeme == "undef")
-                    return Token(TokenType::UNDEF, lexeme, tokenLine, tokenColume);
+                return Token(it->second, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::IDENTIFIER, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::IDENTIFIER, lexeme, tokenLine, tokenColumn);
             }
         }
-
         if (isdigit(ch))
         {
+            if (ch == '0')
+            {
+                lexeme += ch;
+                next();
+                if (ch == 'x' || ch == 'X')
+                { // 十六进制
+                    lexeme += ch;
+                    next();
+                    while (isxdigit(ch))
+                    {
+                        lexeme += ch;
+                        next();
+                    }
+                    return Token(TokenType::INT_CONST, lexeme, tokenLine, tokenColumn);
+                }
+                else if (isdigit(ch))
+                { // 八进制
+                    while (ch >= '0' && ch <= '7')
+                    {
+                        lexeme += ch;
+                        next();
+                    }
+                    return Token(TokenType::INT_CONST, lexeme, tokenLine, tokenColumn);
+                }
+                // 否则继续处理十进制或浮点
+            }
             bool dot = false;
-            while (!isdigit(ch) || (ch == '.' && !dot))
+            while (isdigit(ch) || (!dot && ch == '.'))
             {
                 if (ch == '.')
                     dot = true;
                 lexeme += ch;
                 next();
             }
-            if (dot)
-                return Token(TokenType::FLOAT_CONST, lexeme, tokenLine, tokenColume);
-            else
-                return Token(TokenType::INT_CONST, lexeme, tokenLine, tokenColume);
-        }
+            // 检查指数
+            if (ch == 'e' || ch == 'E')
+            {
+                lexeme += ch;
+                next();
+                if (ch == '+' || ch == '-')
+                {
+                    lexeme += ch;
+                    next();
+                }
+                while (isdigit(ch))
+                {
+                    lexeme += ch;
+                    next();
+                }
+                dot = true; // 科学计数法也是浮点
+            }
 
+            if (dot)
+                return Token(TokenType::FLOAT_CONST, lexeme, tokenLine, tokenColumn);
+            else
+                return Token(TokenType::INT_CONST, lexeme, tokenLine, tokenColumn);
+        }
         if (ch == '.')
         {
             lexeme += ch;
@@ -1169,17 +1280,18 @@ public:
                     lexeme += ch;
                     next();
                 }
-                return Token(TokenType::FLOAT_CONST, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::FLOAT_CONST, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::DOT, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::DOT, lexeme, tokenLine, tokenColumn);
             }
         }
-
         if (ch == ',')
-            return Token(TokenType::COMMA, ",", tokenLine, tokenColume);
-
+        {
+            next();
+            return Token(TokenType::COMMA, ",", tokenLine, tokenColumn);
+        }
         if (ch == '"')
         {
             next();
@@ -1188,14 +1300,15 @@ public:
             {
                 if (ch == EOF)
                 {
-                    return Token(TokenType::ERROR, "", tokenLine, tokenColume);
+                    lexeme += ch;
+                    return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
                 }
                 if (ch == '\\')
                 {
                     next();
                     if (ch == EOF)
                     {
-                        return Token(TokenType::ERROR, "", tokenLine, tokenColume);
+                        return Token(TokenType::ERROR, "", tokenLine, tokenColumn);
                     }
                     switch (ch)
                     {
@@ -1218,26 +1331,53 @@ public:
             }
             if (ch == '"')
                 next();
-            return Token(TokenType::STRING, lexeme, tokenLine, tokenColume);
+            return Token(TokenType::STRING, lexeme, tokenLine, tokenColumn);
         }
         if (ch == ';')
-            return Token(TokenType::SEMI, ";", tokenLine, tokenColume);
+        {
+            next();
+            return Token(TokenType::SEMI, ";", tokenLine, tokenColumn);
+        }
         if (ch == '#')
-            return Token(TokenType::HASHTAG, "#", tokenLine, tokenColume);
+        {
+            next();
+            return Token(TokenType::HASHTAG, "#", tokenLine, tokenColumn);
+        }
         if (ch == ':')
-            return Token(TokenType::COLON, ":", tokenLine, tokenColume);
+        {
+            next();
+            return Token(TokenType::COLON, ":", tokenLine, tokenColumn);
+        }
         if (ch == '(')
-            return Token(TokenType::LPAREN, "(", tokenLine, tokenColume);
+        {
+            next();
+            return Token(TokenType::LPAREN, "(", tokenLine, tokenColumn);
+        }
         if (ch == ')')
-            return Token(TokenType::RPAREN, ")", tokenLine, tokenColume);
+        {
+            next();
+            return Token(TokenType::RPAREN, ")", tokenLine, tokenColumn);
+        }
         if (ch == '{')
-            return Token(TokenType::LBRACE, "{", tokenLine, tokenColume);
+        {
+            next();
+            return Token(TokenType::LBRACE, "{", tokenLine, tokenColumn);
+        }
         if (ch == '}')
-            return Token(TokenType::RBRACE, "}", tokenLine, tokenColume);
+        {
+            next();
+            return Token(TokenType::RBRACE, "}", tokenLine, tokenColumn);
+        }
         if (ch == '[')
-            return Token(TokenType::LBRACKET, "[", tokenLine, tokenColume);
+        {
+            next();
+            return Token(TokenType::LBRACKET, "[", tokenLine, tokenColumn);
+        }
         if (ch == ']')
-            return Token(TokenType::RBRACKET, "]", tokenLine, tokenColume);
+        {
+            next();
+            return Token(TokenType::RBRACKET, "]", tokenLine, tokenColumn);
+        }
         if (ch == '+')
         {
             lexeme += ch;
@@ -1246,17 +1386,17 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::INCREMENT, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::INCREMENT, lexeme, tokenLine, tokenColumn);
             }
             else if (ch == '=')
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::ADD_ASSIGN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::ADD_ASSIGN, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::ADD, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::ADD, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '-')
@@ -1267,23 +1407,23 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::DECREMENT, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::DECREMENT, lexeme, tokenLine, tokenColumn);
             }
             else if (ch == '=')
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::SUB_ASSIGN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::SUB_ASSIGN, lexeme, tokenLine, tokenColumn);
             }
             else if (ch == '>')
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::ARROW, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::ARROW, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::SUB, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::SUB, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '*')
@@ -1294,11 +1434,11 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::MUL_ASSIGN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::MUL_ASSIGN, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::MUL, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::MUL, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '/')
@@ -1309,13 +1449,13 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::DIV_ASSIGN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::DIV_ASSIGN, lexeme, tokenLine, tokenColumn);
             }
             else if (ch == '/')
             {
                 while (ch != '\n' && ch != EOF)
                     next();
-                return Token(TokenType::SIGNAL_COMMENT, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::SIGNAL_COMMENT, lexeme, tokenLine, tokenColumn);
             }
             else if (ch == '*')
             {
@@ -1323,7 +1463,7 @@ public:
                 while (true)
                 {
                     if (ch == EOF)
-                        return Token(TokenType::ERROR, "", tokenLine, tokenColume);
+                        return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
                     if (ch == '*')
                     {
                         next();
@@ -1338,11 +1478,11 @@ public:
                         next();
                     }
                 }
-                return Token(TokenType::BLOCK_COMMENT, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::BLOCK_COMMENT, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::DIV, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::DIV, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '%')
@@ -1353,11 +1493,11 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::MOD_ASSIGN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::MOD_ASSIGN, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::MOD, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::MOD, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '=')
@@ -1368,11 +1508,11 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::EQUAL, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::EQUAL, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::ASSIGN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::ASSIGN, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '<')
@@ -1387,22 +1527,22 @@ public:
                 {
                     lexeme += ch;
                     next();
-                    return Token(TokenType::LEFT_SHIFT_ASSIGN, lexeme, tokenLine, tokenColume);
+                    return Token(TokenType::LEFT_SHIFT_ASSIGN, lexeme, tokenLine, tokenColumn);
                 }
                 else
                 {
-                    return Token(TokenType::LEFT_SHIFT, lexeme, tokenLine, tokenColume);
+                    return Token(TokenType::LEFT_SHIFT, lexeme, tokenLine, tokenColumn);
                 }
             }
             else if (ch == '=')
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::LESS_EQUAL, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::LESS_EQUAL, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::LESS_THAN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::LESS_THAN, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '>')
@@ -1417,22 +1557,22 @@ public:
                 {
                     lexeme += ch;
                     next();
-                    return Token(TokenType::RIGHT_SHIFT_ASSIGN, lexeme, tokenLine, tokenColume);
+                    return Token(TokenType::RIGHT_SHIFT_ASSIGN, lexeme, tokenLine, tokenColumn);
                 }
                 else
                 {
-                    return Token(TokenType::RIGHT_SHIFT, lexeme, tokenLine, tokenColume);
+                    return Token(TokenType::RIGHT_SHIFT, lexeme, tokenLine, tokenColumn);
                 }
             }
             else if (ch == '=')
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::GREATER_EQUAL, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::GREATER_EQUAL, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::GREATER_THAN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::GREATER_THAN, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '!')
@@ -1443,11 +1583,11 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::NOT_EQUAL, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::NOT_EQUAL, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::NOT, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::NOT, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '&')
@@ -1458,17 +1598,17 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::AND, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::AND, lexeme, tokenLine, tokenColumn);
             }
             else if (ch == '=')
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::AND_ASSIGN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::AND_ASSIGN, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::BITWISE_AND, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::BITWISE_AND, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '|')
@@ -1479,17 +1619,17 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::OR, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::OR, lexeme, tokenLine, tokenColumn);
             }
             else if (ch == '=')
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::OR_ASSIGN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::OR_ASSIGN, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::BITWISE_OR, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::BITWISE_OR, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '^')
@@ -1500,21 +1640,88 @@ public:
             {
                 lexeme += ch;
                 next();
-                return Token(TokenType::BITWISE_XOR_ASSIGN, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::BITWISE_XOR_ASSIGN, lexeme, tokenLine, tokenColumn);
             }
             else
             {
-                return Token(TokenType::BITWISE_XOR, lexeme, tokenLine, tokenColume);
+                return Token(TokenType::BITWISE_XOR, lexeme, tokenLine, tokenColumn);
             }
         }
         if (ch == '~')
         {
             lexeme += ch;
             next();
-            return Token(TokenType::BITWISE_NOT, lexeme, tokenLine, tokenColume);
+            return Token(TokenType::BITWISE_NOT, lexeme, tokenLine, tokenColumn);
+        }
+        if (ch == '\'')
+        {
+            lexeme += ch;
+            next();
+            if (ch == '\\')
+            {
+                lexeme += ch;
+                next();
+                if (ch == EOF)
+                {
+                    return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
+                }
+                switch (ch)
+                {
+                case 'n':
+                    ch = '\n';
+                    break;
+                case 't':
+                    ch = '\t';
+                    break;
+                case '\\':
+                    ch = '\\';
+                    break;
+                case '\'':
+                    ch = '\'';
+                    break;
+                }
+                lexeme += ch;
+                next();
+                if (ch == '\'')
+                {
+                    lexeme += ch;
+                    next();
+                    return Token(TokenType::CHAR_CONST, lexeme, tokenLine, tokenColumn);
+                }
+                else
+                {
+                    return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
+                }
+            }
+            else if (ch == EOF)
+            {
+                return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
+            }
+            else
+            {
+                lexeme += ch;
+                next();
+                if (ch == '\'')
+                {
+                    lexeme += ch;
+                    next();
+                    return Token(TokenType::CHAR_CONST, lexeme, tokenLine, tokenColumn);
+                }
+                else
+                {
+                    return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
+                }
+            }
+        }
+        if (ch == '?')
+        {
+            lexeme += ch;
+            next();
+            return Token(TokenType::QUESTMARK, lexeme, tokenLine, tokenColumn);
         }
 
-        return Token(TokenType::ERROR, "", tokenLine, tokenColume);
+        lexeme += ch;
+        return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
     }
 };
 
@@ -1523,6 +1730,10 @@ class Parser
 private:
     Lexer lexer;
     Token currentToken;
+    bool isStorageTypeQualifier(TokenType t)
+    {
+        return t == TokenType::STATIC || t == TokenType::EXTERN || t == TokenType::REGISTER || t == TokenType::CONST || t == TokenType::TYPEDEF;
+    }
 
 public:
     Parser(istream &in) : lexer(in), currentToken(lexer.gettoken()) {};
@@ -1566,61 +1777,49 @@ public:
             return preprocessor();
         }
         vector<string> typeName;
-        if (currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER || currentToken.type == TokenType::CONST)
+        bool storageClass = false, isUsigned = false;
+        while (isStorageTypeQualifier(currentToken.type))
+        {
+            if (storageClass && (currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER || currentToken.type == TokenType::TYPEDEF))
+            {
+                throw std::runtime_error(
+                    "Syntax error at line " + std::to_string(currentToken.line) +
+                    ", column " + std::to_string(currentToken.column) +
+                    ": multiple storage class specifiers");
+            }
+            if (currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER || currentToken.type == TokenType::TYPEDEF)
+                storageClass = true;
+            typeName.push_back(currentToken.lexeme);
+            advance();
+        }
+        if (currentToken.type == TokenType::UNSIGNED)
+        {
+            isUsigned = true;
+            typeName.push_back(currentToken.lexeme);
+            advance();
+        }
+        if (currentToken.type == TokenType::LONG)
         {
             typeName.push_back(currentToken.lexeme);
             advance();
-            if ((currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER || currentToken.type == TokenType::CONST) && currentToken.lexeme != typeName[0])
+            if (currentToken.type == TokenType::LONG)
+            {
+                typeName.push_back(currentToken.lexeme);
+                advance();
+                if (currentToken.type == TokenType::INT)
+                {
+                    typeName.push_back(currentToken.lexeme);
+                    advance();
+                }
+            }
+            else if (currentToken.type == TokenType::INT || (currentToken.type == TokenType::DOUBLE && isUsigned == false))
             {
                 typeName.push_back(currentToken.lexeme);
                 advance();
             }
         }
-        if (currentToken.type == TokenType::VOID || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::INT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED)
+        else if (currentToken.type == TokenType::SHORT)
         {
-            typeName.push_back(currentToken.lexeme);
-            advance();
-            if (currentToken.type == TokenType::IDENTIFIER)
-            {
-                string varName = currentToken.lexeme;
-                advance();
-                if (currentToken.type == TokenType::LPAREN)
-                {
-                    // Function definition or declaration
-                }
-                else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::LBRACKET)
-                {
-                    // Variable declaration
-                }
-                else
-                {
-                    throw std::runtime_error(
-                        "Syntax error at line " + std::to_string(currentToken.line) +
-                        ", column " + std::to_string(currentToken.column) +
-                        ": unexpected token " + tokenTypeToString(currentToken.type));
-                }
-            }
-            else
-            {
-                throw std::runtime_error(
-                    "Syntax error at line " + std::to_string(currentToken.line) +
-                    ", column " + std::to_string(currentToken.column) +
-                    ": expected IDENTIFIER, got " + tokenTypeToString(currentToken.type));
-            }
-        }
-        else
-        {
-            throw std::runtime_error(
-                "Syntax error at line " + std::to_string(currentToken.line) +
-                ", column " + std::to_string(currentToken.column) +
-                ": expected type specifier, got " + tokenTypeToString(currentToken.type));
-        }
-        else
-        {
-            throw std::runtime_error(
-                "Syntax error at line " + std::to_string(currentToken.line) +
-                ", column " + std::to_string(currentToken.column) +
-                ": unexpected token " + tokenTypeToString(currentToken.type));
         }
     }
 
