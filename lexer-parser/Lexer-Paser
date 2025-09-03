@@ -193,7 +193,6 @@ inline std::string tokenTypeToString(TokenType type)
     }
 }
 
-
 class Lexer
 {
 private:
