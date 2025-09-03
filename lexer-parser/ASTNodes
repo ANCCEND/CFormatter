@@ -9,6 +9,7 @@ using namespace std;
 enum class ASTNodeType
 {
     Program,      // 程序
+    Preprocessor, // 预处理指令
     ExtVarDecl,   // 外部变量定义
     TypeSpec,     // 类型说明符
     FunctionDef,  // 函数定义
@@ -42,6 +43,16 @@ public:
     ASTNode(ASTNodeType t) : type(t) {}
     virtual ~ASTNode() = default;
     virtual void print(int indent = 0) const = 0;
+};
+
+class Preprocessor : public ASTNode{
+public:
+    string directive;
+    Preprocessor(const string &dir) : ASTNode(ASTNodeType::Preprocessor), directive(dir) {}
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "Preprocessor: " << directive << "\n";
+    }
 };
 
 class programNode : public ASTNode
