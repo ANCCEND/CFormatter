@@ -13,8 +13,10 @@ enum class ASTNodeType
     ExtVarDecl,   // 外部变量定义
     TypeSpec,     // 类型说明符
     FunctionDef,  // 函数定义
+    FunctionDecl, // 函数声明
     VarDeclList,  // 变量声明列表
     VarDecl,      // 变量声明
+    TypeDef,      // 类型定义
     CompoundStmt, // 语句块 { ... }
     IfStmt,       // if 语句
     THenStmt,     // then 语句
@@ -45,22 +47,12 @@ public:
     virtual void print(int indent = 0) const = 0;
 };
 
-class Preprocessor : public ASTNode{
-public:
-    string directive;
-    Preprocessor(const string &dir) : ASTNode(ASTNodeType::Preprocessor), directive(dir) {}
-    void print(int indent = 0) const override
-    {
-        cout << string(indent, ' ') << "Preprocessor: " << directive << "\n";
-    }
-};
-
-class programNode : public ASTNode
+class ProgramNode : public ASTNode
 {
 public:
     vector<ASTNode *> extdeflists;
-    programNode() : ASTNode(ASTNodeType::Program) {}
-    ~programNode()
+    ProgramNode() : ASTNode(ASTNodeType::Program) {}
+    ~ProgramNode()
     {
         for (auto def : extdeflists)
         {
@@ -99,6 +91,17 @@ public:
     }
 };
 
+class Preprocessor : public ASTNode
+{
+public:
+    string directive;
+    Preprocessor(const string &dir) : ASTNode(ASTNodeType::Preprocessor), directive(dir) {}
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "Preprocessor: " << directive << "\n";
+    }
+};
+
 class TypeSpec : public ASTNode
 {
 public:
@@ -116,14 +119,14 @@ public:
     }
 };
 
-class extVarDecl : public ASTNode
+class ExtVarDecl : public ASTNode
 {
 public:
     TypeSpec *typeName;      // 变量类型，例如 "int"
     vector<string> varNames; // 变量名列表
-    extVarDecl(TypeSpec *type, const vector<string> &names)
+    ExtVarDecl(TypeSpec *type, const vector<string> &names)
         : ASTNode(ASTNodeType::ExtVarDecl), typeName(type), varNames(names) {}
-    ~extVarDecl()
+    ~ExtVarDecl()
     {
         if (typeName)
         {
@@ -155,18 +158,18 @@ public:
     }
 };
 
-class functionDef : public ASTNode
+class FunctionDef : public ASTNode
 {
 public:
     TypeSpec *returnType;                        // 返回类型
     string functionName;                         // 函数名
     vector<pair<TypeSpec *, string>> parameters; // 参数列表，包含类型和名称
-    ASTNode *body;                               // 函数体
+    ASTNode *body = nullptr;                     // 函数体
 
-    functionDef(TypeSpec *retType, const string &funcName,
+    FunctionDef(TypeSpec *retType, const string &funcName,
                 const vector<pair<TypeSpec *, string>> &params, ASTNode *bdy)
         : ASTNode(ASTNodeType::FunctionDef), returnType(retType), functionName(funcName), parameters(params), body(bdy) {}
-    ~functionDef()
+    ~FunctionDef()
     {
         if (returnType)
         {
@@ -217,6 +220,57 @@ public:
         else
         {
             cout << string(indent + 2, ' ') << "Error: Null Body\n";
+        }
+    }
+};
+
+class FuncionDeclNode : public ASTNode
+{
+public:
+    TypeSpec *returnType;                        // 返回类型
+    string functionName;                         // 函数名
+    vector<pair<TypeSpec *, string>> parameters; // 参数列表，包含类型和名称
+    FuncionDeclNode(TypeSpec *retType, const string &funcName,
+                const vector<pair<TypeSpec *, string>> &params)
+        : ASTNode(ASTNodeType::FunctionDecl), returnType(retType), functionName(funcName), parameters(params) {}
+    ~FuncionDeclNode()
+    {
+        if (returnType)
+        {
+            delete returnType;
+        }
+        for (auto &param : parameters)
+        {
+            if (param.first)
+            {
+                delete param.first;
+            }
+        }
+    }
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "FunctionDecl: " << functionName << "\n";
+        if (returnType)
+        {
+            cout << string(indent + 2, ' ') << "Return Type:\n";
+            returnType->print(indent + 4);
+        }
+        else
+        {
+            cout << string(indent + 2, ' ') << "Error: Null Return Type\n";
+        }
+        cout << string(indent + 2, ' ') << "Parameters:\n";
+        for (const auto &param : parameters)
+        {
+            if (param.first)
+            {
+                param.first->print(indent + 4);
+                cout << string(indent + 4, ' ') << "Param Name: " << param.second << "\n";
+            }
+            else
+            {
+                cout << string(indent + 4, ' ') << "Error: Null Parameter Type\n";
+            }
         }
     }
 };
@@ -272,6 +326,34 @@ public:
         else
         {
             cout << string(indent + 2, ' ') << "Error: Null VarDecl\n";
+        }
+    }
+};
+
+class TypeDefNode : public ASTNode
+{
+public:
+    TypeSpec *typeName; // 类型名称
+    string alias;       // 别名
+    TypeDefNode(TypeSpec *type, const string &al)
+        : ASTNode(ASTNodeType::TypeDef), typeName(type), alias(al) {}
+    ~TypeDefNode()
+    {
+        if (typeName)
+        {
+            delete typeName;
+        }
+    }
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "TypeDef: " << alias << "\n";
+        if (typeName)
+        {
+            typeName->print(indent + 2);
+        }
+        else
+        {
+            cout << string(indent + 2, ' ') << "Error: Null TypeSpec\n";
         }
     }
 };
@@ -830,36 +912,76 @@ public:
     }
 };
 
-/*if (currentToken.type == TokenType::VOID || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::INT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::STRUCT || currentToken.type == TokenType::UNION || currentToken.type == TokenType::ENUM)
+/*if (currentToken.type == TokenType::UNSIGNED)
+        {
+            isUsigned = true;
+            typeName.push_back(currentToken.lexeme);
+            advance();
+        }
+        else if (currentToken.type == TokenType::SIGNED)
+        {
+            typeName.push_back(currentToken.lexeme);
+            advance();
+        }
+        if (currentToken.type == TokenType::LONG)
+        {
+            typeName.push_back(currentToken.lexeme);
+            advance();
+            if (currentToken.type == TokenType::LONG)
+            {
+                typeName.push_back(currentToken.lexeme);
+                advance();
+                if (currentToken.type == TokenType::INT)
+                {
+                    typeName.push_back(currentToken.lexeme);
+                    advance();
+                }
+            }
+            else if (currentToken.type == TokenType::INT || (currentToken.type == TokenType::DOUBLE && isUsigned == false))
+            {
+                typeName.push_back(currentToken.lexeme);
+                advance();
+            }
+        }
+        else if (currentToken.type == TokenType::SHORT)
+        {
+            typeName.push_back(currentToken.lexeme);
+            advance();
+            if (currentToken.type == TokenType::INT)
+            {
+                typeName.push_back(currentToken.lexeme);
+                advance();
+            }
+        }
+        else if (currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::VOID)
+        {
+            typeName.push_back(currentToken.lexeme);
+            advance();
+        }
+        else if (currentToken.type == TokenType::STRUCT || currentToken.type == TokenType::UNION || currentToken.type == TokenType::ENUM)
+        {
+            // struct, union, enum 还没写
+        }
+
+        else
+        {
+            throw std::runtime_error(
+                "Syntax error at line " + std::to_string(currentToken.line) +
+                ", column " + std::to_string(currentToken.column) +
+                ": expected type specifier");
+        }*/
+
+/*while (currentToken.type == TokenType::STRUCT || currentToken.type == TokenType::UNION)
         {
             typeName.push_back(currentToken.lexeme);
             advance();
             if (currentToken.type == TokenType::IDENTIFIER)
             {
-                string varName = currentToken.lexeme;
+                typeName.push_back(currentToken.lexeme);
                 advance();
-                if (currentToken.type == TokenType::LPAREN)
-                {
-                    // Function definition or declaration
-                }
-                else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::LBRACKET)
-                {
-                    // Variable declaration
-                }
-                else
-                {
-                    throw std::runtime_error(
-                        "Syntax error at line " + std::to_string(currentToken.line) +
-                        ", column " + std::to_string(currentToken.column) +
-                        ": unexpected token " + tokenTypeToString(currentToken.type));
-                }
             }
-        
-            else
+            if (currentToken.type == TokenType::LBRACE)
             {
-                throw std::runtime_error(
-                    "Syntax error at line " + std::to_string(currentToken.line) +
-                    ", column " + std::to_string(currentToken.column) +
-                    ": expected IDENTIFIER, got " + tokenTypeToString(currentToken.type));
+                return
             }
         }*/

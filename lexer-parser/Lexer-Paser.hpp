@@ -56,12 +56,12 @@ public:
     }
 };
 
-class programNode : public ASTNode
+class ProgramNode : public ASTNode
 {
 public:
     vector<ASTNode *> extdeflists;
-    programNode() : ASTNode(ASTNodeType::Program) {}
-    ~programNode()
+    ProgramNode() : ASTNode(ASTNodeType::Program) {}
+    ~ProgramNode()
     {
         for (auto def : extdeflists)
         {
@@ -117,14 +117,14 @@ public:
     }
 };
 
-class extVarDecl : public ASTNode
+class ExtVarDecl : public ASTNode
 {
 public:
     TypeSpec *typeName;      // 变量类型，例如 "int"
     vector<string> varNames; // 变量名列表
-    extVarDecl(TypeSpec *type, const vector<string> &names)
+    ExtVarDecl(TypeSpec *type, const vector<string> &names)
         : ASTNode(ASTNodeType::ExtVarDecl), typeName(type), varNames(names) {}
-    ~extVarDecl()
+    ~ExtVarDecl()
     {
         if (typeName)
         {
@@ -156,7 +156,7 @@ public:
     }
 };
 
-class functionDef : public ASTNode
+class FunctionDef : public ASTNode
 {
 public:
     TypeSpec *returnType;                        // 返回类型
@@ -164,10 +164,10 @@ public:
     vector<pair<TypeSpec *, string>> parameters; // 参数列表，包含类型和名称
     ASTNode *body;                               // 函数体
 
-    functionDef(TypeSpec *retType, const string &funcName,
+    FunctionDef(TypeSpec *retType, const string &funcName,
                 const vector<pair<TypeSpec *, string>> &params, ASTNode *bdy)
         : ASTNode(ASTNodeType::FunctionDef), returnType(retType), functionName(funcName), parameters(params), body(bdy) {}
-    ~functionDef()
+    ~FunctionDef()
     {
         if (returnType)
         {
@@ -218,6 +218,57 @@ public:
         else
         {
             cout << string(indent + 2, ' ') << "Error: Null Body\n";
+        }
+    }
+};
+
+class FuncionDeclNode : public ASTNode
+{
+public:
+    TypeSpec *returnType;                        // 返回类型
+    string functionName;                         // 函数名
+    vector<pair<TypeSpec *, string>> parameters; // 参数列表，包含类型和名称
+    FuncionDeclNode(TypeSpec *retType, const string &funcName,
+                    const vector<pair<TypeSpec *, string>> &params)
+        : ASTNode(ASTNodeType::FunctionDecl), returnType(retType), functionName(funcName), parameters(params) {}
+    ~FuncionDeclNode()
+    {
+        if (returnType)
+        {
+            delete returnType;
+        }
+        for (auto &param : parameters)
+        {
+            if (param.first)
+            {
+                delete param.first;
+            }
+        }
+    }
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "FunctionDecl: " << functionName << "\n";
+        if (returnType)
+        {
+            cout << string(indent + 2, ' ') << "Return Type:\n";
+            returnType->print(indent + 4);
+        }
+        else
+        {
+            cout << string(indent + 2, ' ') << "Error: Null Return Type\n";
+        }
+        cout << string(indent + 2, ' ') << "Parameters:\n";
+        for (const auto &param : parameters)
+        {
+            if (param.first)
+            {
+                param.first->print(indent + 4);
+                cout << string(indent + 4, ' ') << "Param Name: " << param.second << "\n";
+            }
+            else
+            {
+                cout << string(indent + 4, ' ') << "Error: Null Parameter Type\n";
+            }
         }
     }
 };
@@ -273,6 +324,34 @@ public:
         else
         {
             cout << string(indent + 2, ' ') << "Error: Null VarDecl\n";
+        }
+    }
+};
+
+class TypeDefNode : public ASTNode
+{
+public:
+    TypeSpec *typeName; // 类型名称
+    string alias;       // 别名
+    TypeDefNode(TypeSpec *type, const string &al)
+        : ASTNode(ASTNodeType::TypeDef), typeName(type), alias(al) {}
+    ~TypeDefNode()
+    {
+        if (typeName)
+        {
+            delete typeName;
+        }
+    }
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "TypeDef: " << alias << "\n";
+        if (typeName)
+        {
+            typeName->print(indent + 2);
+        }
+        else
+        {
+            cout << string(indent + 2, ' ') << "Error: Null TypeSpec\n";
         }
     }
 };
@@ -1730,9 +1809,90 @@ class Parser
 private:
     Lexer lexer;
     Token currentToken;
-    bool isStorageTypeQualifier(TokenType t)
+    void throwError(const string &message)
     {
-        return t == TokenType::STATIC || t == TokenType::EXTERN || t == TokenType::REGISTER || t == TokenType::CONST || t == TokenType::TYPEDEF;
+        throw std::runtime_error(
+            "Syntax error at line " + std::to_string(currentToken.line) +
+            ", column " + std::to_string(currentToken.column) +
+            ": " + message);
+    }
+    bool isStorageType(TokenType t)
+    {
+        return t == TokenType::STATIC || t == TokenType::EXTERN || t == TokenType::REGISTER; // || t == TokenType::CONST || t == TokenType::TYPEDEF;
+    }
+    void checkTypeCombination(const std::vector<std::string> &typeName)
+    {
+        int longCount = 0, shortCount = 0, intCount = 0, voidCount = 0, doubleCount = 0, floatCount = 0, charCount = 0, signedCount = 0, unsignedCount = 0;
+
+        for (auto &t : typeName)
+        {
+            if (t == "unsigned")
+                unsignedCount++;
+            else if (t == "signed")
+                signedCount++;
+            else if (t == "int")
+                intCount++;
+            else if (t == "char")
+                charCount++;
+            else if (t == "float")
+                floatCount++;
+            else if (t == "double")
+                doubleCount++;
+            else if (t == "long")
+                longCount++;
+            else if (t == "short")
+                shortCount++;
+            else if (t == "void")
+                voidCount++;
+        }
+
+        // 1. 数量约束
+        if (shortCount > 1)
+            throwError("multiple 'short'");
+        if (longCount > 2)
+            throwError("too many 'long'");
+        if (intCount > 1)
+            throwError("multiple 'int'");
+        if (voidCount > 1)
+            throwError("multiple 'void'");
+        if (floatCount > 1)
+            throwError("multiple 'float'");
+        if (doubleCount > 1)
+            throwError("multiple 'double'");
+        if (charCount > 1)
+            throwError("multiple 'char'");
+        if (signedCount > 1)
+            throwError("multiple 'signed'");
+        if (unsignedCount > 1)
+            throwError("multiple 'unsigned'");
+
+        // 2. signed / unsigned 互斥
+        if (unsignedCount && signedCount)
+            throwError("'signed' and 'unsigned' cannot be used together");
+
+        // 3. void 不能和其他类型组合
+        if (voidCount && (intCount || charCount || floatCount || doubleCount || shortCount || longCount || signedCount || unsignedCount))
+            throwError("'void' cannot be combined with other types");
+
+        // 4. char 规则
+        if (charCount & (intCount || floatCount || doubleCount || shortCount || longCount))
+            throwError("'char' cannot be combined with 'int', 'float', 'double', 'short', or 'long'");
+        // 5. float / double 规则
+        if (floatCount && (intCount || charCount || shortCount || longCount || signedCount || unsignedCount))
+            throwError("'float' cannot be combined with 'int', 'char', 'short', 'long', 'signed', or 'unsigned'");
+        if (doubleCount)
+        {
+            if (shortCount)
+                throwError("'short double' is not allowed");
+            if (unsignedCount || signedCount)
+                throwError("'unsigned double' or 'signed double' is not allowed");
+            if (longCount > 1)
+                throwError("too many 'long' for 'double'");
+            // allow "long double"
+        }
+        // 6. int 规则
+        if (intCount && (floatCount || doubleCount))
+            throwError("'int' cannot be combined with 'float' or 'double'");
     }
 
 public:
@@ -1749,16 +1909,12 @@ public:
         }
         else
         {
-            throw std::runtime_error(
-                "Syntax error at line " + std::to_string(currentToken.line) +
-                ", column " + std::to_string(currentToken.column) +
-                ": expected " + tokenTypeToString(expected) +
-                ", got " + tokenTypeToString(currentToken.type));
+            throwError("expected token " + tokenTypeToString(expected) + ", got " + tokenTypeToString(currentToken.type));
         }
     }
     ASTNode *program()
     {
-        auto node = new programNode();
+        auto node = new ProgramNode();
         while (currentToken.type != TokenType::END_OF_FILE)
         {
             auto ext = extdef();
@@ -1774,56 +1930,62 @@ public:
     {
         if (currentToken.type == TokenType::HASHTAG)
         {
-            return preprocessor();
+            return preProcessor();
         }
         vector<string> typeName;
-        bool storageClass = false, isUsigned = false;
-        while (isStorageTypeQualifier(currentToken.type))
+        bool HasStorageClass = false, HasTypeSpec = false;
+        int count = 0;
+        while (isStorageType(currentToken.type))
         {
-            if (storageClass && (currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER || currentToken.type == TokenType::TYPEDEF))
+            if (HasStorageClass && isStorageType(currentToken.type)) //(currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER || currentToken.type == TokenType::TYPEDEF))
+                throwError("multiple storage class specifiers");
+
+            HasStorageClass = true;
+            typeName.push_back(currentToken.lexeme);
+
+            advance();
+        }
+        if (currentToken.type == TokenType::TYPEDEF)
+        {
+            if (HasStorageClass)
+                throwError("storage class specifier and 'typedef' cannot be used together");
+            typeName.push_back(currentToken.lexeme);
+            return typeDef();
+        }
+        while (currentToken.type == TokenType::VOID || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::INT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST)
+        {
+            if (currentToken.type != TokenType::CONST)
             {
-                throw std::runtime_error(
-                    "Syntax error at line " + std::to_string(currentToken.line) +
-                    ", column " + std::to_string(currentToken.column) +
-                    ": multiple storage class specifiers");
+                HasTypeSpec = true;
             }
-            if (currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER || currentToken.type == TokenType::TYPEDEF)
-                storageClass = true;
             typeName.push_back(currentToken.lexeme);
             advance();
         }
-        if (currentToken.type == TokenType::UNSIGNED)
+        if (HasTypeSpec == false)
+            throwError("expected type specifier");
+        checkTypeCombination(typeName);
+        TypeSpec *typeSpec = new TypeSpec(typeName);
+
+        if (currentToken.type == TokenType::IDENTIFIER)
         {
-            isUsigned = true;
-            typeName.push_back(currentToken.lexeme);
-            advance();
-        }
-        if (currentToken.type == TokenType::LONG)
-        {
-            typeName.push_back(currentToken.lexeme);
-            advance();
-            if (currentToken.type == TokenType::LONG)
+            string varName = currentToken.lexeme;
+            eat(TokenType::IDENTIFIER);
+            if (currentToken.type == TokenType::LPAREN)
             {
-                typeName.push_back(currentToken.lexeme);
-                advance();
-                if (currentToken.type == TokenType::INT)
-                {
-                    typeName.push_back(currentToken.lexeme);
-                    advance();
-                }
+                // 函数定义或声明
+                return funcDeclOrDef();
             }
-            else if (currentToken.type == TokenType::INT || (currentToken.type == TokenType::DOUBLE && isUsigned == false))
+            else
             {
-                typeName.push_back(currentToken.lexeme);
-                advance();
+                // 变量定义
+                return extVarDef();
             }
         }
-        else if (currentToken.type == TokenType::SHORT)
-        {
-        }
+        else
+            throwError("expected IDENTIFIER");
     }
 
-    ASTNode *preprocessor()
+    ASTNode *preProcessor()
     {
         eat(TokenType::HASHTAG);
         if (currentToken.type == TokenType::INCLUDE)
@@ -1890,7 +2052,14 @@ public:
             }
         }
     }
-    ASTNode *extvardef()
+
+    ASTNode *extVarDef()
+    {
+    }
+    ASTNode *typeDef()
+    {
+    }
+    ASTNode *funcDeclOrDef()
     {
     }
 };
