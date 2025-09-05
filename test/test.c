@@ -14,11 +14,11 @@ int main()
 
         if (s[0] == 'M')
         {
-            printf("%.2lf\n", a / 1.09);
+            printf("%.2lf\n", a / 1.09L);
         }
         else if (s[0] == 'F')
         {
-            printf("%.2lf\n", a * 1.09);
+            printf("%.2lf\n", a * 1.09f);
         }
     }
 

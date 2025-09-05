@@ -334,8 +334,8 @@ class TypeDefNode : public ASTNode
 {
 public:
     TypeSpec *typeName; // 类型名称
-    string alias;       // 别名
-    TypeDefNode(TypeSpec *type, const string &al)
+    vector<string> alias;       // 别名
+    TypeDefNode(TypeSpec *type, const vector<string> &al)
         : ASTNode(ASTNodeType::TypeDef), typeName(type), alias(al) {}
     ~TypeDefNode()
     {
@@ -346,7 +346,7 @@ public:
     }
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "TypeDef: " << alias << "\n";
+        cout << string(indent, ' ') << "TypeDef: ";
         if (typeName)
         {
             typeName->print(indent + 2);
@@ -354,6 +354,17 @@ public:
         else
         {
             cout << string(indent + 2, ' ') << "Error: Null TypeSpec\n";
+        }
+        for (const auto &al : alias)
+        {
+            if (!al.empty())
+            {
+                cout << string(indent + 2, ' ') << "Alias: " << al << "\n";
+            }
+            else
+            {
+                cout << string(indent + 2, ' ') << "Error: Empty Alias Name\n";
+            }
         }
     }
 };
