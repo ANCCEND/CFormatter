@@ -123,9 +123,9 @@ class ExtVarDecl : public ASTNode
 {
 public:
     TypeSpec *typeName;      // 变量类型，例如 "int"
-    vector<string> varNames; // 变量名列表
-    ExtVarDecl(TypeSpec *type, const vector<string> &names)
-        : ASTNode(ASTNodeType::ExtVarDecl), typeName(type), varNames(names) {}
+    vector<pair<Identifier,Literal>> variable; // 变量名列表
+    ExtVarDecl(TypeSpec *type, const vector<pair<Identifier,Literal>> &names)
+        : ASTNode(ASTNodeType::ExtVarDecl), typeName(type), variable(names) {}
     ~ExtVarDecl()
     {
         if (typeName)
@@ -135,25 +135,22 @@ public:
     }
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "ExtVarDecl:\n";
         if (typeName)
         {
-            typeName->print(indent + 2);
+            typeName->print(indent);
         }
         else
         {
-            cout << string(indent + 2, ' ') << "Error: Null TypeSpec\n";
+            cout << string(indent, ' ') << "Error: Null TypeSpec\n";
         }
-        for (const auto &name : varNames)
+        for (const auto &var : variable)
         {
-            if (!name.empty())
+            cout << string(indent + 2, ' ') << "Var: " << var.first.name;
+            if (!var.second.value.empty())
             {
-                cout << string(indent + 2, ' ') << "Var: " << name << "\n";
+                cout << " = " << var.second.value;
             }
-            else
-            {
-                cout << string(indent + 2, ' ') << "Error: Empty Variable Name\n";
-            }
+            cout << "\n";
         }
     }
 };
@@ -228,11 +225,11 @@ class FuncionDeclNode : public ASTNode
 {
 public:
     TypeSpec *returnType;                        // 返回类型
-    string functionName;                         // 函数名
-    vector<pair<TypeSpec *, string>> parameters; // 参数列表，包含类型和名称
-    FuncionDeclNode(TypeSpec *retType, const string &funcName,
-                const vector<pair<TypeSpec *, string>> &params)
-        : ASTNode(ASTNodeType::FunctionDecl), returnType(retType), functionName(funcName), parameters(params) {}
+    vector<string> functionNames;                // 函数名
+    vector<vector<pair<TypeSpec *, string>>> parameters; // 参数列表，包含类型和名称
+    FuncionDeclNode(TypeSpec *retType, const vector<string> &funcName,
+                    const vector<vector<pair<TypeSpec *, string>>> &params)
+        : ASTNode(ASTNodeType::FunctionDecl), returnType(retType), functionNames(funcName), parameters(params) {}
     ~FuncionDeclNode()
     {
         if (returnType)
@@ -241,35 +238,44 @@ public:
         }
         for (auto &param : parameters)
         {
-            if (param.first)
+            for(auto &p : param)
             {
-                delete param.first;
+                if (p.first)
+                {
+                    delete p.first;
+                }
             }
         }
     }
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "FunctionDecl: " << functionName << "\n";
-        if (returnType)
+        for (auto &funcName : functionNames)
         {
-            cout << string(indent + 2, ' ') << "Return Type:\n";
-            returnType->print(indent + 4);
-        }
-        else
-        {
-            cout << string(indent + 2, ' ') << "Error: Null Return Type\n";
-        }
-        cout << string(indent + 2, ' ') << "Parameters:\n";
-        for (const auto &param : parameters)
-        {
-            if (param.first)
+            cout << string(indent, ' ') << "FunctionDecl: " << funcName << "\n";
+            if (returnType)
             {
-                param.first->print(indent + 4);
-                cout << string(indent + 4, ' ') << "Param Name: " << param.second << "\n";
+                cout << string(indent + 2, ' ') << "Return Type:\n";
+                returnType->print(indent + 4);
             }
             else
             {
-                cout << string(indent + 4, ' ') << "Error: Null Parameter Type\n";
+                cout << string(indent + 2, ' ') << "Error: Null Return Type\n";
+            }
+            cout << string(indent + 2, ' ') << "Parameters:\n";
+            for (const auto &param : parameters)
+            {
+                for(const auto &p : param)
+                {
+                    if (p.first)
+                    {
+                        p.first->print(indent + 4);
+                        cout << string(indent + 4, ' ') << "Param Name: " << p.second << "\n";
+                    }
+                    else
+                    {
+                        cout << string(indent + 4, ' ') << "Error: Null Parameter Type\n";
+                    }
+                }
             }
         }
     }
@@ -279,8 +285,8 @@ class VarDecl : public ASTNode
 {
 public:
     TypeSpec *typeName; // 变量类型
-    string varName;     // 变量名
-    VarDecl(TypeSpec *type, const string &name)
+    vector<string> varName;     // 变量名
+    VarDecl(TypeSpec *type, const vector<string> &name)
         : ASTNode(ASTNodeType::VarDecl), typeName(type), varName(name) {}
     ~VarDecl()
     {
@@ -291,7 +297,7 @@ public:
     }
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "VarDecl: " << varName << "\n";
+        cout << string(indent, ' ') << "VarDecl:\n";
         if (typeName)
         {
             typeName->print(indent + 2);
@@ -299,6 +305,17 @@ public:
         else
         {
             cout << string(indent + 2, ' ') << "Error: Null TypeSpec\n";
+        }
+        for (const auto &name : varName)
+        {
+            if (!name.empty())
+            {
+                cout << string(indent + 2, ' ') << "Var: " << name << "\n";
+            }
+            else
+            {
+                cout << string(indent + 2, ' ') << "Error: Empty Variable Name\n";
+            }
         }
     }
 };
@@ -333,8 +350,8 @@ public:
 class TypeDefNode : public ASTNode
 {
 public:
-    TypeSpec *typeName; // 类型名称
-    vector<string> alias;       // 别名
+    TypeSpec *typeName;   // 类型名称
+    vector<string> alias; // 别名
     TypeDefNode(TypeSpec *type, const vector<string> &al)
         : ASTNode(ASTNodeType::TypeDef), typeName(type), alias(al) {}
     ~TypeDefNode()
@@ -868,8 +885,10 @@ public:
 
 class Literal : public ASTNode
 {
+//字面量
 public:
     string value;
+    Literal() : ASTNode(ASTNodeType::Literal), value("") {}
     Literal(const string &val)
         : ASTNode(ASTNodeType::Literal), value(val) {}
     void print(int indent = 0) const override
@@ -880,6 +899,7 @@ public:
 
 class Identifier : public ASTNode
 {
+// 标识符
 public:
     string name;
     Identifier(const string &n)
@@ -996,3 +1016,6 @@ public:
                 return
             }
         }*/
+
+
+        
