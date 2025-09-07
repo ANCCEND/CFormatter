@@ -112,6 +112,8 @@ enum class TokenType
     SIGNAL_COMMENT, // //
     BLOCK_COMMENT,  // /* */
     END_OF_FILE,
+
+    NONE
 };
 
 struct Token
@@ -1081,6 +1083,32 @@ private:
         if (intCount && (floatCount || doubleCount))
             throwError("'int' cannot be combined with 'float' or 'double'");
     }
+    void arrVar(TypeSpec typeSpec, vector<string> &Names, vector<pair<VarClass, Literal>> variable)
+    {
+        while(currentToken.type == TokenType::LBRACKET)
+        {
+            eat(TokenType::LBRACKET);
+            if (currentToken.type == TokenType::RBRACKET)
+            {
+                advance();
+                // 未指定大小的数组
+                eat(TokenType::ASSIGN);
+                eat(TokenType::LBRACE);
+                // 处理初始化列表
+            }
+            else if (currentToken.type == TokenType::INT_CONST)
+            {
+                int size = stoi(currentToken.lexeme);
+                eat(TokenType::INT_CONST);
+                eat(TokenType::RBRACKET);
+                
+            }
+            else
+            {
+                throwError("expected ']' or array size");
+            }
+        }
+    }
 
 public:
     Parser(istream &in) : lexer(in), currentToken(lexer.gettoken()) {};
@@ -1173,7 +1201,7 @@ public:
                 // 函数定义或声明
                 return funcDeclOrDef(typeSpec, Names);
             }
-            else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::LBRACKET)
+            else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::LBRACKET || currentToken.type == TokenType::ASSIGN)
             {
                 // 变量定义
                 return varDecl(typeSpec, Names);
@@ -1253,83 +1281,48 @@ public:
                     ": expected STRING after #include");
             }
         }
+        else if( currentToken.type == TokenType::DEFINE )
+        {
+            string directive = "#";
+            directive += currentToken.lexeme;
+            directive += ' ';
+            eat(TokenType::DEFINE);
+            if (currentToken.type == TokenType::IDENTIFIER)
+            {
+                directive += currentToken.lexeme;
+                eat(TokenType::IDENTIFIER);
+                while (currentToken.type != TokenType::END_OF_FILE && currentToken.type != TokenType::SEMI && currentToken.type != TokenType::HASHTAG)
+                {
+                    directive += ' ' + currentToken.lexeme;
+                    advance();
+                }
+                return new Preprocessor(directive);
+            }
+            else
+            {
+                throw std::runtime_error(
+                    "Syntax error at line " + std::to_string(currentToken.line) +
+                    ", column " + std::to_string(currentToken.column) +
+                    ": expected IDENTIFIER after #define");
+            }
+        }
+        else
+        {
+            throw std::runtime_error(
+                "Syntax error at line " + std::to_string(currentToken.line) +
+                ", column " + std::to_string(currentToken.column) +
+                ": expected 'include' or 'define' after '#'");
+        }
     }
 
     ASTNode *varDecl(TypeSpec *typeSpec, vector<string> &varNames)
     {
-        vector<pair<Identifier, Literal>> variable;
+        vector<pair<VarClass, Literal>> variable;
         while (currentToken.type != TokenType::SEMI)
         {
             if (currentToken.type == TokenType::LBRACKET)
             {
-                string arrSize;
-                arrSize += currentToken.lexeme;
-                eat(TokenType::LBRACKET);
-                int currentline=currentToken.line;
-                int currentcolumn=currentToken.column;
-                if (currentToken.type == TokenType::INT_CONST)
-                {
-                    arrSize += currentToken.lexeme;
-                    eat(TokenType::INT_CONST);
-                }
-                else if(currentToken.type==TokenType::RBRACKET)
-                {
-                    // 支持不指定大小的数组，如 int arr[];
-                    arrSize += "0"; // 使用0表示不指定大小
-                    eat(TokenType::RBRACKET);
-                    typeSpec->typeName.push_back(arrSize);
-                    eat(TokenType::ASSIGN);
-                    if(currentToken.type==TokenType::STRING){
-                        auto it = find(typeSpec->typeName.begin(), typeSpec->typeName.end(), "char");
-                        if (it == typeSpec->typeName.end())
-                            throwError("array of string must be char type");
-                        variable.push_back({Identifier(varNames.back()), Literal(currentToken.lexeme)});
-                        eat(TokenType::STRING);
-                    }
-                    else if (currentToken.type == TokenType::LBRACE)
-                    {
-                        auto it = find(typeSpec->typeName.begin(), typeSpec->typeName.end(), "char");
-                        if (it != typeSpec->typeName.end()){
-                            string values;
-                            eat(TokenType::LBRACE);
-                            bool hasElements = false;
-                            while (currentToken.type != TokenType::RBRACE)
-                            {
-                                if(currentToken.type==TokenType::CHAR_CONST){
-                                    values += currentToken.lexeme;
-                                    eat(TokenType::CHAR_CONST);
-                                    hasElements = true;
-                                    if(currentToken.type==TokenType::COMMA){
-                                        eat(TokenType::COMMA);
-                                    }
-                                }
-                                else{
-                                    throwError("expected CHAR_CONST or ',' in char array initialization");
-                                }
-                            }
-                            variable.push_back({Identifier(varNames.back()), Literal(values)});
-                            eat(TokenType::RBRACE);
-                            if(!hasElements){
-                                throwError("empty initializer for char array");
-                            }
-                        }
-                    }
-                }
-
-                else
-                {
-                    throwError("expected INT_CONST or ']' in array declaration");
-                }
-                if (currentToken.type == TokenType::RBRACKET)
-                {
-                    arrSize += currentToken.lexeme;
-                    eat(TokenType::RBRACKET);
-                }
-                else
-                {
-                    throwError("expected ']' after array size in array declaration");
-                }
-                typeSpec->typeName.push_back(arrSize);
+                // 处理数组
             }
             else if (currentToken.type == TokenType::COMMA)
             {
@@ -1337,7 +1330,11 @@ public:
                 if (currentToken.type == TokenType::IDENTIFIER)
                 {
                     varNames.push_back(currentToken.lexeme);
-                    eat(TokenType::IDENTIFIER);
+                    advance();
+                    if (currentToken.type == TokenType::ASSIGN)
+                    {
+                        // 处理初始化
+                    }
                 }
                 else
                 {
@@ -1346,26 +1343,16 @@ public:
             }
             else if (currentToken.type == TokenType::ASSIGN)
             {
-                eat(TokenType::ASSIGN);
-                if (currentToken.type == TokenType::INT_CONST || currentToken.type == TokenType::FLOAT_CONST || currentToken.type == TokenType::DOUBLE_CONST || currentToken.type == TokenType::CHAR_CONST || currentToken.type == TokenType::STRING)
-                {
-                    variable.push_back({Identifier(varNames.back()), Literal(currentToken.lexeme)});
-                    eat(currentToken.type);
-                }
-                else
-                {
-                    throwError("expected literal after '=' in variable declaration");
-                }
+                // 处理初始化
             }
             else
             {
                 throwError("expected '[' or ',' or ';' after IDENTIFIER in variable declaration");
             }
         }
-        return new ExtVarDecl(typeSpec, variable);
         eat(TokenType::SEMI);
+        return new ExtVarDecl(typeSpec, variable);
     }
-
 
     ASTNode *funcDeclOrDef(TypeSpec *FuncReturnType, vector<string> &FuncNames)
     {
@@ -1513,9 +1500,9 @@ public:
 
     ASTNode *BinaryExpression()
     {
+        ASTNode *left = nullptr;
+        ASTNode *right = nullptr;
+        string op;
     }
 
-    ASTNode *UnaryExpression()
-    {
-    }
 };

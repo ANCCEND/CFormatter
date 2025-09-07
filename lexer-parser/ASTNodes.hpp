@@ -16,6 +16,7 @@ enum class ASTNodeType
     FunctionDecl, // 函数声明
     VarDeclList,  // 变量声明列表
     VarDecl,      // 变量声明
+    VarClass,     // 变量类别（标识符或数组）
     TypeDef,      // 类型定义
     CompoundStmt, // 语句块 { ... }
     IfStmt,       // if 语句
@@ -36,6 +37,121 @@ enum class ASTNodeType
     Literal,      // 常量
     Identifier,   // 标识符
     CallExpr      // 函数调用
+};
+
+enum class VarKind
+{
+    IDENT,
+    ARRAY,
+};
+
+enum class TokenType
+{
+    ERROR,
+    IDENTIFIER,
+
+    VOID,
+    CHAR,
+    SHORT,
+    UNSIGNED,
+    SIGNED,
+    INT,
+    LONG,
+    FLOAT,
+    DOUBLE,
+
+    CHAR_CONST,
+    INT_CONST,
+    FLOAT_CONST,
+    LONG_CONST,
+    DOUBLE_CONST,
+    LONG_LONG_CONST,
+    USIGNED_INT_CONST,
+    UNSIGNED_LONG_CONST,
+    UNSIGNED_LONG_LONG_CONST,
+
+    IF,
+    ELSE,
+    SWITCH,
+    WHILE,
+    DO,
+    FOR,
+    BREAK,
+    CONTINUE,
+    RETURN,
+    SIZEOF,
+    TYPEDEF,
+    DEFAULT,
+    CASE,
+    STATIC,
+    EXTERN,
+    REGISTER,
+    CONST,
+    STRUCT,
+    UNION,
+    ENUM,
+
+    INCLUDE,
+    DEFINE,
+    UNDEF,
+
+    ADD,
+    DIV,
+    MOD,
+    MUL,
+    ASSIGN,
+    SUB,
+    ADD_ASSIGN,
+    DIV_ASSIGN,
+    MOD_ASSIGN,
+    MUL_ASSIGN,
+    SUB_ASSIGN,
+    LEFT_SHIFT,
+    RIGHT_SHIFT, // <<, >>
+    BITWISE_AND,
+    BITWISE_OR,
+    BITWISE_XOR, // &, |, ^
+    BITWISE_NOT, // ~
+    INCREMENT,
+    DECREMENT, // ++, --
+    ARROW,     // ->
+    AND,
+    OR,
+    NOT, // &&, ||, !
+    LEFT_SHIFT_ASSIGN,
+    RIGHT_SHIFT_ASSIGN,
+    AND_ASSIGN,
+    OR_ASSIGN,
+    NOT_ASSIGN,
+    BITWISE_AND_ASSIGN,
+    BITWISE_OR_ASSIGN,
+    BITWISE_XOR_ASSIGN, // <<=, >>=, &=, |=, ^=
+    EQUAL,
+    NOT_EQUAL,
+    LESS_THAN,
+    GREATER_THAN,
+    LESS_EQUAL,
+    GREATER_EQUAL, // ==, !=, <, >, <=, >=
+
+    STRING,
+    LPAREN,   // (
+    RPAREN,   // )
+    LBRACE,   // {
+    RBRACE,   // }
+    LBRACKET, // [
+    RBRACKET, // ]
+    DOT,
+    COMMA,
+    SEMI,      // ;
+    HASHTAG,   // #
+    COLON,     // :
+    QUESTMARK, // ?
+
+    SIGNAL_COMMENT, // //
+    BLOCK_COMMENT,  // /* */
+    END_OF_FILE,
+
+    NONE
 };
 
 class ASTNode
@@ -62,17 +178,6 @@ public:
             }
         }
         // extdeflists.clear();
-    }
-    void addExtdef(ASTNode *def)
-    {
-        if (def)
-        {
-            extdeflists.push_back(def);
-        }
-        else
-        {
-            cout << "Warning: Attempted to add null ExtDef to programNode\n";
-        }
     }
     void print(int indent = 0) const override
     {
@@ -110,7 +215,7 @@ public:
         : ASTNode(ASTNodeType::TypeSpec), typeName(names) {}
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "TypeSpec: ";
+        cout << string(indent, ' ') << "Type: ";
         for (const auto &name : typeName)
         {
             cout << name << " ";
@@ -119,38 +224,38 @@ public:
     }
 };
 
+class VarClass : public ASTNode
+{
+public:
+    VarKind kind;
+    TypeSpec *typeName;
+    string name; // 变量名
+    VarClass(VarKind k, TypeSpec *type, const string &n)
+        : ASTNode(ASTNodeType::VarClass), kind(k), typeName(type), name(n) {}
+    void print(int indent = 0) const override
+    {
+        if(typeName){
+            typeName->print(indent);
+        }else{
+            cout << string(indent, ' ') << "Error: Null TypeSpec\n";
+        }
+        cout << string(indent, ' ') << "VarName: " << name << "\n";
+    }
+};
+
 class ExtVarDecl : public ASTNode
 {
 public:
-    TypeSpec *typeName;      // 变量类型，例如 "int"
-    vector<pair<Identifier,Literal>> variable; // 变量名列表
-    ExtVarDecl(TypeSpec *type, const vector<pair<Identifier,Literal>> &names)
-        : ASTNode(ASTNodeType::ExtVarDecl), typeName(type), variable(names) {}
-    ~ExtVarDecl()
-    {
-        if (typeName)
-        {
-            delete typeName;
-        }
-    }
+    vector<pair<VarClass, Literal>> variable; // 变量名列表
+    ExtVarDecl(TypeSpec *type, const vector<pair<VarClass, Literal>> &names)
+        : ASTNode(ASTNodeType::ExtVarDecl), variable(names) {}
     void print(int indent = 0) const override
     {
-        if (typeName)
-        {
-            typeName->print(indent);
-        }
-        else
-        {
-            cout << string(indent, ' ') << "Error: Null TypeSpec\n";
-        }
+        cout << string(indent, ' ') << "ExtVarDecl:\n";
         for (const auto &var : variable)
         {
-            cout << string(indent + 2, ' ') << "Var: " << var.first.name;
-            if (!var.second.value.empty())
-            {
-                cout << " = " << var.second.value;
-            }
-            cout << "\n";
+            var.first.print(indent + 2);
+            var.second.print(indent + 2);
         }
     }
 };
@@ -189,7 +294,7 @@ public:
         cout << string(indent, ' ') << "FunctionDef: " << functionName << "\n";
         if (returnType)
         {
-            cout << string(indent + 2, ' ') << "Return Type:\n";
+            cout << string(indent + 2, ' ') << "Return :\n";
             returnType->print(indent + 4);
         }
         else
@@ -224,8 +329,8 @@ public:
 class FuncionDeclNode : public ASTNode
 {
 public:
-    TypeSpec *returnType;                        // 返回类型
-    vector<string> functionNames;                // 函数名
+    TypeSpec *returnType;                                // 返回类型
+    vector<string> functionNames;                        // 函数名
     vector<vector<pair<TypeSpec *, string>>> parameters; // 参数列表，包含类型和名称
     FuncionDeclNode(TypeSpec *retType, const vector<string> &funcName,
                     const vector<vector<pair<TypeSpec *, string>>> &params)
@@ -238,7 +343,7 @@ public:
         }
         for (auto &param : parameters)
         {
-            for(auto &p : param)
+            for (auto &p : param)
             {
                 if (p.first)
                 {
@@ -264,7 +369,7 @@ public:
             cout << string(indent + 2, ' ') << "Parameters:\n";
             for (const auto &param : parameters)
             {
-                for(const auto &p : param)
+                for (const auto &p : param)
                 {
                     if (p.first)
                     {
@@ -284,10 +389,10 @@ public:
 class VarDecl : public ASTNode
 {
 public:
-    TypeSpec *typeName; // 变量类型
-    vector<string> varName;     // 变量名
-    VarDecl(TypeSpec *type, const vector<string> &name)
-        : ASTNode(ASTNodeType::VarDecl), typeName(type), varName(name) {}
+    TypeSpec *typeName;     // 变量类型
+    vector<pair<VarClass, Literal>> variable;
+    VarDecl(TypeSpec *type, const vector<pair<VarClass, Literal>> &names)
+        : ASTNode(ASTNodeType::VarDecl), typeName(type), variable(names) {}
     ~VarDecl()
     {
         if (typeName)
@@ -297,25 +402,22 @@ public:
     }
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "VarDecl:\n";
         if (typeName)
         {
-            typeName->print(indent + 2);
+            typeName->print(indent);
         }
         else
         {
-            cout << string(indent + 2, ' ') << "Error: Null TypeSpec\n";
+            cout << string(indent, ' ') << "Error: Null TypeSpec\n";
         }
-        for (const auto &name : varName)
+        for (const auto &var : variable)
         {
-            if (!name.empty())
+            cout << string(indent + 2, ' ') << "Var: " << var.first.name;
+            if (!var.second.value.empty())
             {
-                cout << string(indent + 2, ' ') << "Var: " << name << "\n";
+                cout << " = " << var.second.value;
             }
-            else
-            {
-                cout << string(indent + 2, ' ') << "Error: Empty Variable Name\n";
-            }
+            cout << "\n";
         }
     }
 };
@@ -389,6 +491,7 @@ public:
 class CompoundStmt : public ASTNode
 {
 public:
+    vector<ASTNode *> vardecls;
     vector<ASTNode *> statements; // 语句列表
     CompoundStmt() : ASTNode(ASTNodeType::CompoundStmt) {}
     ~CompoundStmt()
@@ -415,6 +518,13 @@ public:
     void print(int indent = 0) const override
     {
         cout << string(indent, ' ') << "CompoundStmt:\n";
+        for(auto decl : vardecls){
+            if(decl){
+                decl->print(indent + 2);
+            }else{
+                cout << string(indent + 2, ' ') << "Error: Null VarDecl\n";
+            }
+        }
         for (auto stmt : statements)
         {
             if (stmt)
@@ -885,21 +995,24 @@ public:
 
 class Literal : public ASTNode
 {
-//字面量
+    // 字面量
 public:
     string value;
-    Literal() : ASTNode(ASTNodeType::Literal), value("") {}
-    Literal(const string &val)
-        : ASTNode(ASTNodeType::Literal), value(val) {}
+    TokenType tokenType;
+    Literal() : ASTNode(ASTNodeType::Literal), value(""),tokenType(TokenType::NONE) {}
+    Literal(const string &val,TokenType lt) : ASTNode(ASTNodeType::Literal), value(val),tokenType(lt) {}
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "Literal: " << value << "\n";
+        if(!value.empty())
+        {
+            cout << string(indent, ' ') << "Literal: " << value << "\n";
+        }
     }
 };
 
 class Identifier : public ASTNode
 {
-// 标识符
+    // 标识符
 public:
     string name;
     Identifier(const string &n)
@@ -943,79 +1056,77 @@ public:
     }
 };
 
-/*if (currentToken.type == TokenType::UNSIGNED)
-        {
-            isUsigned = true;
-            typeName.push_back(currentToken.lexeme);
-            advance();
-        }
-        else if (currentToken.type == TokenType::SIGNED)
-        {
-            typeName.push_back(currentToken.lexeme);
-            advance();
-        }
-        if (currentToken.type == TokenType::LONG)
-        {
-            typeName.push_back(currentToken.lexeme);
-            advance();
-            if (currentToken.type == TokenType::LONG)
-            {
-                typeName.push_back(currentToken.lexeme);
-                advance();
-                if (currentToken.type == TokenType::INT)
+/*string arrSize;
+                arrSize += currentToken.lexeme;
+                eat(TokenType::LBRACKET);
+                int currentline = currentToken.line;
+                int currentcolumn = currentToken.column;
+                if (currentToken.type == TokenType::INT_CONST)
                 {
-                    typeName.push_back(currentToken.lexeme);
-                    advance();
+                    arrSize += currentToken.lexeme;
+                    eat(TokenType::INT_CONST);
                 }
-            }
-            else if (currentToken.type == TokenType::INT || (currentToken.type == TokenType::DOUBLE && isUsigned == false))
-            {
-                typeName.push_back(currentToken.lexeme);
-                advance();
-            }
-        }
-        else if (currentToken.type == TokenType::SHORT)
-        {
-            typeName.push_back(currentToken.lexeme);
-            advance();
-            if (currentToken.type == TokenType::INT)
-            {
-                typeName.push_back(currentToken.lexeme);
-                advance();
-            }
-        }
-        else if (currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::VOID)
-        {
-            typeName.push_back(currentToken.lexeme);
-            advance();
-        }
-        else if (currentToken.type == TokenType::STRUCT || currentToken.type == TokenType::UNION || currentToken.type == TokenType::ENUM)
-        {
-            // struct, union, enum 还没写
-        }
+                else if (currentToken.type == TokenType::RBRACKET)
+                {
+                    // 支持不指定大小的数组，如 int arr[];
+                    arrSize += "0"; // 使用0表示不指定大小
+                    eat(TokenType::RBRACKET);
+                    typeSpec->typeName.push_back(arrSize);
+                    eat(TokenType::ASSIGN);
+                    if (currentToken.type == TokenType::STRING)
+                    {
+                        auto it = find(typeSpec->typeName.begin(), typeSpec->typeName.end(), "char");
+                        if (it == typeSpec->typeName.end())
+                            throwError("array of string must be char type");
+                        variable.push_back({Identifier(varNames.back()), Literal(currentToken.lexeme, currentToken.type)});
+                        eat(TokenType::STRING);
+                    }
+                    else if (currentToken.type == TokenType::LBRACE)
+                    {
+                        auto it = find(typeSpec->typeName.begin(), typeSpec->typeName.end(), "char");
+                        if (it != typeSpec->typeName.end())
+                        {
+                            string values;
+                            eat(TokenType::LBRACE);
+                            bool hasElements = false;
+                            while (currentToken.type != TokenType::RBRACE)
+                            {
+                                if (currentToken.type == TokenType::CHAR_CONST)
+                                {
+                                    values += currentToken.lexeme;
+                                    eat(TokenType::CHAR_CONST);
+                                    hasElements = true;
+                                    if (currentToken.type == TokenType::COMMA)
+                                    {
+                                        eat(TokenType::COMMA);
+                                    }
+                                }
+                                else
+                                {
+                                    throwError("expected CHAR_CONST or ',' in char array initialization");
+                                }
+                            }
+                            variable.push_back({Identifier(varNames.back()), Literal(values)});
+                            eat(TokenType::RBRACE);
+                            if (!hasElements)
+                            {
+                                throwError("empty initializer for char array");
+                            }
+                        } // 多维数组还没写
+                    }
+                }
 
-        else
-        {
-            throw std::runtime_error(
-                "Syntax error at line " + std::to_string(currentToken.line) +
-                ", column " + std::to_string(currentToken.column) +
-                ": expected type specifier");
-        }*/
-
-/*while (currentToken.type == TokenType::STRUCT || currentToken.type == TokenType::UNION)
-        {
-            typeName.push_back(currentToken.lexeme);
-            advance();
-            if (currentToken.type == TokenType::IDENTIFIER)
-            {
-                typeName.push_back(currentToken.lexeme);
-                advance();
-            }
-            if (currentToken.type == TokenType::LBRACE)
-            {
-                return
-            }
-        }*/
-
-
-        
+                else
+                {
+                    throwError("expected INT_CONST or ']' in array declaration");
+                }
+                if (currentToken.type == TokenType::RBRACKET)
+                {
+                    arrSize += currentToken.lexeme;
+                    eat(TokenType::RBRACKET);
+                }
+                else
+                {
+                    throwError("expected ']' after array size in array declaration");
+                }
+                typeSpec->typeName.push_back(arrSize);*/
