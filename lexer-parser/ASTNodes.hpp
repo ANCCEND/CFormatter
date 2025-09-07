@@ -966,33 +966,6 @@ public:
     }
 };
 
-class UnaryExpr : public ASTNode
-{
-public:
-    ASTNode *operand;
-    string op;
-    UnaryExpr(ASTNode *opr, const string &o)
-        : ASTNode(ASTNodeType::UnaryExpr), operand(opr), op(o) {}
-    ~UnaryExpr()
-    {
-        if (operand)
-            delete operand;
-    }
-    void print(int indent = 0) const override
-    {
-        cout << string(indent, ' ') << "UnaryExpr: " << op << "\n";
-        if (operand)
-        {
-            cout << string(indent + 2, ' ') << "Operand:\n";
-            operand->print(indent + 4);
-        }
-        else
-        {
-            cout << string(indent + 2, ' ') << "Error: Null Operand\n";
-        }
-    }
-};
-
 class Literal : public ASTNode
 {
     // 字面量
@@ -1130,3 +1103,31 @@ public:
                     throwError("expected ']' after array size in array declaration");
                 }
                 typeSpec->typeName.push_back(arrSize);*/
+
+/*class UnaryExpr : public ASTNode
+{
+public:
+    ASTNode *operand;
+    string op;
+    UnaryExpr(ASTNode *opr, const string &o)
+        : ASTNode(ASTNodeType::UnaryExpr), operand(opr), op(o) {}
+    ~UnaryExpr()
+    {
+        if (operand)
+            delete operand;
+    }
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "UnaryExpr: " << op << "\n";
+        if (operand)
+        {
+            cout << string(indent + 2, ' ') << "Operand:\n";
+            operand->print(indent + 4);
+        }
+        else
+        {
+            cout << string(indent + 2, ' ') << "Error: Null Operand\n";
+        }
+    }
+};
+*/

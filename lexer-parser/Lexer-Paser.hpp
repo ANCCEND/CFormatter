@@ -3,6 +3,7 @@
 #include <cctype>
 #include <vector>
 #include <algorithm>
+#include <stack>
 #include "ASTNodes.hpp"
 
 using namespace std;
@@ -1085,7 +1086,7 @@ private:
     }
     void arrVar(TypeSpec typeSpec, vector<string> &Names, vector<pair<VarClass, Literal>> variable)
     {
-        while(currentToken.type == TokenType::LBRACKET)
+        while (currentToken.type == TokenType::LBRACKET)
         {
             eat(TokenType::LBRACKET);
             if (currentToken.type == TokenType::RBRACKET)
@@ -1101,7 +1102,6 @@ private:
                 int size = stoi(currentToken.lexeme);
                 eat(TokenType::INT_CONST);
                 eat(TokenType::RBRACKET);
-                
             }
             else
             {
@@ -1281,7 +1281,7 @@ public:
                     ": expected STRING after #include");
             }
         }
-        else if( currentToken.type == TokenType::DEFINE )
+        else if (currentToken.type == TokenType::DEFINE)
         {
             string directive = "#";
             directive += currentToken.lexeme;
@@ -1471,6 +1471,31 @@ public:
         eat(TokenType::LBRACE);
     }
 
+    ASTNode *statement()
+    {
+        switch (currentToken.type)
+        {
+        case TokenType::IF:
+            return ifStatement();
+        case TokenType::WHILE:
+            return whileStatement();
+        case TokenType::FOR:
+            return forStatement();
+        case TokenType::RETURN:
+            return returnStatement();
+        case TokenType::SWITCH:
+            return SwitchStatement();
+        case TokenType::BREAK:
+            return BreakStatement();
+        case TokenType::CONTINUE:
+            return ContinueStatement();
+        case TokenType::LBRACE:
+            return compoundStmt();
+        default:
+            return Expression();
+        }
+    }
+
     ASTNode *ifStatement()
     {
     }
@@ -1484,25 +1509,208 @@ public:
 
     ASTNode *returnStatement()
     {
+        eat(TokenType::RETURN);
+        ASTNode *expr = nullptr;
+        if (currentToken.type != TokenType::SEMI)
+        {
+            expr = Expression();
+        }
+        eat(TokenType::SEMI);
+        return new ReturnStmt(expr);
     }
 
     ASTNode *SwitchStatement()
     {
+        eat(TokenType::SWITCH);
+        eat(TokenType::LPAREN);
+        auto expr = Expression();
+        eat(TokenType::RPAREN);
+        eat(TokenType::LBRACE);
+        vector<ASTNode *> cases;
+        ASTNode *defaultCase = nullptr;
+        while (currentToken.type != TokenType::RBRACE)
+        {
+            if (currentToken.type == TokenType::CASE)
+            {
+                eat(TokenType::CASE);
+                auto caseExpr = Expression();
+                eat(TokenType::COLON);
+                vector<ASTNode *> stmts;
+                while (currentToken.type != TokenType::CASE && currentToken.type != TokenType::DEFAULT && currentToken.type != TokenType::RBRACE)
+                {
+                    auto stmt = statement();
+                    if (stmt)
+                        stmts.push_back(stmt);
+                }
+                cases.push_back(new SwitchCase(caseExpr, stmts));
+            }
+            else if (currentToken.type == TokenType::DEFAULT)
+            {
+                eat(TokenType::DEFAULT);
+                eat(TokenType::COLON);
+                vector<ASTNode *> stmts;
+                while (currentToken.type != TokenType::RBRACE)
+                {
+                    auto stmt = statement();
+                    if (stmt)
+                        stmts.push_back(stmt);
+                }
+                if (defaultCase)
+                    throwError("multiple default cases in switch");
+                defaultCase = new DefaultCase(stmts);
+            }
+            else
+            {
+                throwError("expected 'case' or 'default' in switch statement");
+            }
+        }
     }
 
     ASTNode *BreakStatement()
     {
+        return new BreakStmt();
     }
 
     ASTNode *ContinueStatement()
     {
+        return new ContinueStmt();
     }
 
-    ASTNode *BinaryExpression()
+    ASTNode *Expression()
     {
-        ASTNode *left = nullptr;
-        ASTNode *right = nullptr;
-        string op;
-    }
+        const vector<TokenType> operators = {
+            TokenType::OR, TokenType::AND,
+            TokenType::BITWISE_OR, TokenType::BITWISE_XOR, TokenType::BITWISE_AND,
+            TokenType::EQUAL, TokenType::NOT_EQUAL,
+            TokenType::LESS_THAN, TokenType::LESS_EQUAL, TokenType::GREATER_THAN, TokenType::GREATER_EQUAL,
+            TokenType::LEFT_SHIFT, TokenType::RIGHT_SHIFT,
+            TokenType::ADD, TokenType::SUB,
+            TokenType::MUL, TokenType::DIV, TokenType::MOD};
 
+        const vector<TokenType> constants = {
+            TokenType::INT_CONST, TokenType::FLOAT_CONST, TokenType::CHAR_CONST, TokenType::STRING, TokenType::IDENTIFIER, TokenType::LONG_CONST, TokenType::DOUBLE_CONST, TokenType::LONG_LONG_CONST, TokenType::UNSIGNED_LONG_CONST, TokenType::UNSIGNED_LONG_LONG_CONST};
+
+        const unordered_map<string, int> opPrecedence = {
+            {"||", 1},
+            {"&&", 2},
+            {"|", 3},
+            {"^", 4},
+            {"&", 5},
+            {"==", 6},
+            {"!=", 6},
+            {"<", 7},
+            {"<=", 7},
+            {">", 7},
+            {">=", 7},
+            {"<<", 8},
+            {">>", 8},
+            {"+", 9},
+            {"-", 9},
+            {"*", 10},
+            {"/", 10},
+            {"%", 10}};
+
+        stack<BinaryExpr *> opStack;
+        stack<BinaryExpr *> valStack;
+        BinaryExpr *root = nullptr;
+        do
+        {
+            if (find(constants.begin(), constants.end(), currentToken.type) != constants.end())
+            {
+                // 处理操作数
+                valStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme));
+                advance();
+            }
+            else if (find(operators.begin(), operators.end(), currentToken.type) != operators.end())
+            {
+                // 处理操作符
+                while (!opStack.empty() && opPrecedence.at(opStack.top()->op) >= opPrecedence.at(currentToken.lexeme))
+                {
+                    // 处理栈顶运算符
+                    auto opNode = opStack.top();
+                    opStack.pop();
+                    if (valStack.size() < 2)
+                    {
+                        throwError("insufficient values for operator " + opNode->op);
+                    }
+                    auto right = valStack.top();
+                    valStack.pop();
+                    auto left = valStack.top();
+                    valStack.pop();
+                    opNode->left = left;
+                    opNode->right = right;
+                    valStack.push(opNode);
+                }
+                // 将当前运算符入栈
+                opStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme));
+                advance();
+            }
+            else if (currentToken.type == TokenType::LPAREN)
+            {
+                // 处理左括号
+                opStack.push(new BinaryExpr(nullptr, nullptr, "("));
+                advance();
+            }
+            else if (currentToken.type == TokenType::RPAREN)
+            {
+                // 处理右括号
+                while (!opStack.empty() && opStack.top()->op != "(")
+                {
+                    auto opNode = opStack.top();
+                    opStack.pop();
+                    if (valStack.size() < 2)
+                    {
+                        throwError("insufficient values for operator " + opNode->op);
+                    }
+                    auto right = valStack.top();
+                    valStack.pop();
+                    auto left = valStack.top();
+                    valStack.pop();
+                    opNode->left = left;
+                    opNode->right = right;
+                    valStack.push(opNode);
+                }
+                if (opStack.empty() || opStack.top()->op != "(")
+                {
+                    throwError("mismatched parentheses");
+                }
+
+                opStack.pop(); // 弹出左括号
+                advance();
+            }
+            else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA)
+            {
+                // 表达式结束
+                break;
+            }
+            else
+            {
+                throwError("unexpected token in expression: " + tokenTypeToString(currentToken.type));
+            }
+        } while (true);
+        while (!opStack.empty())
+        {
+            // 处理剩余的运算符
+            auto opNode = opStack.top();
+            opStack.pop();
+            if (valStack.size() < 2)
+            {
+                throwError("insufficient values for operator " + opNode->op);
+            }
+            auto right = valStack.top();
+            valStack.pop();
+            auto left = valStack.top();
+            valStack.pop();
+            opNode->left = left;
+            opNode->right = right;
+            valStack.push(opNode);
+        }
+        if (valStack.size() != 1)
+        {
+            throwError("invalid expression");
+        }
+        root = valStack.top();
+        valStack.pop();
+        return root;
+    }
 };
