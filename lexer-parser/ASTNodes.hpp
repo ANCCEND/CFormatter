@@ -23,6 +23,7 @@ enum class ASTNodeType
     THenStmt,     // then 语句
     ElseStmt,     // else 语句
     WhileStmt,    // while 语句
+    DoWhileStmt,  // do-while 语句
     ReturnStmt,   // return 语句
     SwitchStmt,   // switch 语句
     SwitchCase,   // case 语句
@@ -36,7 +37,7 @@ enum class ASTNodeType
     UnaryExpr,    // 一元表达式
     Literal,      // 常量
     Identifier,   // 标识符
-    CallExpr      // 函数调用
+    FuncCallExpr      // 函数调用
 };
 
 enum class VarKind
@@ -669,6 +670,32 @@ public:
     }
 };
 
+class DoWhileStmt : public ASTNode{
+    public:
+    ASTNode *body;
+    ASTNode *condition;
+    DoWhileStmt(ASTNode *bdy, ASTNode *cond) : ASTNode(ASTNodeType::DoWhileStmt), body(bdy), condition(cond) {}
+    ~DoWhileStmt(){
+        if(body) delete body;
+        if(condition) delete condition;
+    }
+    void print(int indent = 0) const override{
+        cout << string(indent, ' ') << "DoWhileStmt:\n";
+        if(body){
+            cout << string(indent + 2, ' ') << "Body:\n";
+            body->print(indent + 4);
+        }else{
+            cout << string(indent + 2, ' ') << "Error: Null Body\n";
+        }
+        if(condition){
+            cout << string(indent + 2, ' ') << "Condition:\n";
+            condition->print(indent + 4);
+        }else{
+            cout << string(indent + 2, ' ') << "Error: Null Condition\n";
+        }
+    }
+};
+
 class ReturnStmt : public ASTNode
 {
 public:
@@ -996,14 +1023,14 @@ public:
     }
 };
 
-class CallExpr : public ASTNode
+class FuncCallExpr : public ASTNode
 {
 public:
     string functionName;
     vector<ASTNode *> arguments;
-    CallExpr(const string &fname, const vector<ASTNode *> &args)
-        : ASTNode(ASTNodeType::CallExpr), functionName(fname), arguments(args) {}
-    ~CallExpr()
+    FuncCallExpr(const string &fname, const vector<ASTNode *> &args)
+        : ASTNode(ASTNodeType::FuncCallExpr), functionName(fname), arguments(args) {}
+    ~FuncCallExpr()
     {
         for (auto arg : arguments)
         {
@@ -1131,3 +1158,4 @@ public:
     }
 };
 */
+

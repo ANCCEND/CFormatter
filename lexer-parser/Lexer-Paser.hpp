@@ -267,7 +267,7 @@ static const unordered_map<TokenType, string> TokenMap{
     {TokenType::END_OF_FILE, "END_OF_FILE"},
 };
 
-const vector<string> operators = {
+/*const vector<string> operators = {
     "+",
     "-",
     "*",
@@ -297,7 +297,10 @@ const vector<string> operators = {
     "<<",
     ">>",
     "->",
-};
+};*/
+
+const vector<TokenType> constants = {
+    TokenType::INT_CONST, TokenType::FLOAT_CONST, TokenType::CHAR_CONST, TokenType::STRING, TokenType::IDENTIFIER, TokenType::LONG_CONST, TokenType::DOUBLE_CONST, TokenType::LONG_LONG_CONST, TokenType::UNSIGNED_LONG_CONST, TokenType::UNSIGNED_LONG_LONG_CONST};
 
 inline std::string tokenTypeToString(TokenType type)
 {
@@ -999,6 +1002,7 @@ class Parser
 private:
     Lexer lexer;
     Token currentToken;
+    vector<string> funcNames; // 用于存储函数名
     void throwError(const string &message)
     {
         throw std::runtime_error(
@@ -1199,12 +1203,13 @@ public:
             if (currentToken.type == TokenType::LPAREN)
             {
                 // 函数定义或声明
+
                 return funcDeclOrDef(typeSpec, Names);
             }
             else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::LBRACKET || currentToken.type == TokenType::ASSIGN)
             {
                 // 变量定义
-                return varDecl(typeSpec, Names);
+                return extVarDecl(typeSpec, Names);
             }
             else
             {
@@ -1315,7 +1320,7 @@ public:
         }
     }
 
-    ASTNode *varDecl(TypeSpec *typeSpec, vector<string> &varNames)
+    ASTNode *extVarDecl(TypeSpec *typeSpec, vector<string> &varNames)
     {
         vector<pair<VarClass, Literal>> variable;
         while (currentToken.type != TokenType::SEMI)
@@ -1352,6 +1357,45 @@ public:
         }
         eat(TokenType::SEMI);
         return new ExtVarDecl(typeSpec, variable);
+    }
+
+    ASTNode *varDecl(TypeSpec *typeSpec, vector<string> &varNames)
+    {
+        vector<pair<VarClass, Literal>> variable;
+        while (currentToken.type != TokenType::SEMI)
+        {
+            if (currentToken.type == TokenType::LBRACKET)
+            {
+                // 处理数组
+            }
+            else if (currentToken.type == TokenType::COMMA)
+            {
+                eat(TokenType::COMMA);
+                if (currentToken.type == TokenType::IDENTIFIER)
+                {
+                    varNames.push_back(currentToken.lexeme);
+                    advance();
+                    if (currentToken.type == TokenType::ASSIGN)
+                    {
+                        // 处理初始化
+                    }
+                }
+                else
+                {
+                    throwError("expected IDENTIFIER after ',' in variable declaration");
+                }
+            }
+            else if (currentToken.type == TokenType::ASSIGN)
+            {
+                // 处理初始化
+            }
+            else
+            {
+                throwError("expected '[' or ',' or ';' after IDENTIFIER in variable declaration");
+            }
+        }
+        eat(TokenType::SEMI);
+        return new VarDecl(typeSpec, variable);
     }
 
     ASTNode *funcDeclOrDef(TypeSpec *FuncReturnType, vector<string> &FuncNames)
@@ -1402,8 +1446,9 @@ public:
         if (currentToken.type == TokenType::SEMI)
         {
             // 函数声明
-            return new FuncionDeclNode(FuncReturnType, FuncNames, allParams);
             eat(TokenType::SEMI);
+            FuncNames.push_back(FuncNames[0]);
+            return new FuncionDeclNode(FuncReturnType, FuncNames, allParams);
         }
         else if (currentToken.type == TokenType::COMMA)
         {
@@ -1423,6 +1468,9 @@ public:
             }
             eat(TokenType::RPAREN);
             eat(TokenType::SEMI);
+            for(auto &name : FuncNames) {
+                FuncNames.push_back(name);
+            }
             return new FuncionDeclNode(FuncReturnType, FuncNames, allParams);
         }
         else if (currentToken.type == TokenType::LBRACE)
@@ -1503,8 +1551,22 @@ public:
     ASTNode *whileStatement()
     {
     }
+
     ASTNode *forStatement()
     {
+        eat(TokenType::FOR);
+        eat(TokenType::LPAREN);
+        ASTNode *init = nullptr;
+        ASTNode *condition = nullptr;
+        ASTNode *increment = nullptr;
+        ASTNode *body = nullptr;
+        if (currentToken.type != TokenType::SEMI){
+            if(currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST){
+                init = statement();
+            } else {
+                init = Expression();
+            }
+        }
     }
 
     ASTNode *returnStatement()
@@ -1568,15 +1630,46 @@ public:
 
     ASTNode *BreakStatement()
     {
+        eat(TokenType::BREAK);
+        eat(TokenType::SEMI);
         return new BreakStmt();
     }
 
     ASTNode *ContinueStatement()
     {
+        eat(TokenType::CONTINUE);
+        eat(TokenType::SEMI);
         return new ContinueStmt();
     }
 
     ASTNode *Expression()
+    {
+        if(currentToken.type==TokenType::IDENTIFIER){
+            
+        }
+    }
+
+    ASTNode *funcCall(Token nextToken)
+    {
+        string funcName = currentToken.lexeme;
+        eat(TokenType::IDENTIFIER);
+        currentToken = nextToken;
+        eat(TokenType::LPAREN);
+        vector<ASTNode *> args;
+        if (currentToken.type != TokenType::RPAREN)
+        {
+            args.push_back(Expression());
+            while (currentToken.type == TokenType::COMMA)
+            {
+                eat(TokenType::COMMA);
+                args.push_back(Expression());
+            }
+        }
+        eat(TokenType::RPAREN);
+        return new FuncCallExpr(funcName, args);
+    }
+
+    ASTNode *binaryExpression()
     {
         const vector<TokenType> operators = {
             TokenType::OR, TokenType::AND,
@@ -1586,9 +1679,6 @@ public:
             TokenType::LEFT_SHIFT, TokenType::RIGHT_SHIFT,
             TokenType::ADD, TokenType::SUB,
             TokenType::MUL, TokenType::DIV, TokenType::MOD};
-
-        const vector<TokenType> constants = {
-            TokenType::INT_CONST, TokenType::FLOAT_CONST, TokenType::CHAR_CONST, TokenType::STRING, TokenType::IDENTIFIER, TokenType::LONG_CONST, TokenType::DOUBLE_CONST, TokenType::LONG_LONG_CONST, TokenType::UNSIGNED_LONG_CONST, TokenType::UNSIGNED_LONG_LONG_CONST};
 
         const unordered_map<string, int> opPrecedence = {
             {"||", 1},
