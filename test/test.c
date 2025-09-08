@@ -8,17 +8,14 @@ int main()
     double a;
 
     // 循环处理每个输入
-    for (int i = 0; i < n; i++)
+    for (int i=0;i<n;i++)
     {
-        scanf("%s %lf", &s, &a);
+        scanf("%s %lf",&s,&a);
 
-        if (s[0] == 'M')
-        {
-            printf("%.2lf\n", a / 1.09L);
-        }
+        if(s[0]=='M')
+        {printf("%.2lf\n", a/1.09L);}
         else if (s[0] == 'F')
-        {
-            printf("%.2lf\n", a * 1.09f);
+        {printf("%.2lf\n", a*1.09f);
         }
     }
 

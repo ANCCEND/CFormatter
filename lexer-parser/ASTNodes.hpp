@@ -15,8 +15,9 @@ enum class ASTNodeType
     FunctionDef,  // 函数定义
     FunctionDecl, // 函数声明
     VarDeclList,  // 变量声明列表
-    VarDecl,      // 变量声明
+    LocalVarDecl, // 变量声明
     VarClass,     // 变量类别（标识符或数组）
+    VarInit,      // 变量初始化
     TypeDef,      // 类型定义
     CompoundStmt, // 语句块 { ... }
     IfStmt,       // if 语句
@@ -32,12 +33,13 @@ enum class ASTNodeType
     BreakStmt,    // break 语句
     ContinueStmt, // continue 语句
     StuctStmt,    // struct 语句
+    EmptyStmt,    // 空语句
     Statement,    // 语句
     BinaryExpr,   // 二元表达式
     UnaryExpr,    // 一元表达式
     Literal,      // 常量
     Identifier,   // 标识符
-    FuncCallExpr      // 函数调用
+    FuncCallExpr  // 函数调用
 };
 
 enum class VarKind
@@ -225,38 +227,161 @@ public:
     }
 };
 
-class VarClass : public ASTNode
+class VarDeclNode : public ASTNode
 {
 public:
-    VarKind kind;
     TypeSpec *typeName;
-    string name; // 变量名
-    VarClass(VarKind k, TypeSpec *type, const string &n)
-        : ASTNode(ASTNodeType::VarClass), kind(k), typeName(type), name(n) {}
+    string name;                  // 变量名
+    vector<ASTNode *> arraySizes; // 数组维度大小表达式列表
+    ASTNode *init = nullptr;      // 初始化表达式，若无初始化则为 nullptr
+    VarDeclNode(TypeSpec *type, const string &varName, const vector<ASTNode *> &sizes, ASTNode *initializer = nullptr)
+        : ASTNode(ASTNodeType::VarDeclList), typeName(type), name(varName), arraySizes(sizes), init(initializer) {}
+    ~VarDeclNode()
+    {
+        if (typeName)
+        {
+            delete typeName;
+        }
+        for (auto size : arraySizes)
+        {
+            if (size)
+            {
+                delete size;
+            }
+        }
+        if (init)
+        {
+            delete init;
+        }
+    }
+
     void print(int indent = 0) const override
     {
-        if(typeName){
-            typeName->print(indent);
-        }else{
-            cout << string(indent, ' ') << "Error: Null TypeSpec\n";
+        cout << string(indent, ' ') << "VarDecl: " << name << "\n";
+        if (typeName)
+        {
+            typeName->print(indent + 2);
         }
-        cout << string(indent, ' ') << "VarName: " << name << "\n";
+        else
+        {
+            cout << string(indent + 2, ' ') << "Error: Null TypeSpec\n";
+        }
+        if (!arraySizes.empty())
+        {
+            cout << string(indent + 2, ' ') << "Array Sizes:\n";
+            for (const auto &size : arraySizes)
+            {
+                cout << string(indent + 4, ' ') << '[';
+                if (size)
+                {
+                    size->print(0);
+                }
+                cout << ']' << endl;
+            }
+        }
+        if (init)
+        {
+            cout << string(indent + 2, ' ') << "Initializer:\n";
+            init->print(indent + 4);
+        }
+    }
+};
+
+class VarInitList : public ASTNode
+{
+public:
+    vector<ASTNode *> inits;
+    VarInitList(const vector<ASTNode *> &initializers)
+        : ASTNode(ASTNodeType::VarDeclList), inits(initializers) {}
+    ~VarInitList()
+    {
+        for (auto init : inits)
+        {
+            if (init)
+            {
+                delete init;
+            }
+        }
+    }
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "VarInitList:\n";
+        for (const auto &init : inits)
+        {
+            if (init)
+            {
+                init->print(indent + 2);
+            }
+            else
+            {
+                cout << string(indent + 2, ' ') << "Error: Null Initializer\n";
+            }
+        }
+    }
+};
+
+class LocalVarDecl : public ASTNode
+{
+public:
+    vector<VarDeclNode *> varDecls; // 变量声明列表
+    LocalVarDecl(const vector<VarDeclNode *> &vars)
+        : ASTNode(ASTNodeType::LocalVarDecl), varDecls(vars) {}
+    ~LocalVarDecl()
+    {
+        for (auto var : varDecls)
+        {
+            if (var)
+            {
+                delete var;
+            }
+        }
+    }
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "LocalVarDecl:\n";
+        for (const auto &var : varDecls)
+        {
+            if (var)
+            {
+                var->print(indent + 2);
+            }
+            else
+            {
+                cout << string(indent + 2, ' ') << "Error: Null VarDecl\n";
+            }
+        }
     }
 };
 
 class ExtVarDecl : public ASTNode
 {
 public:
-    vector<pair<VarClass, Literal>> variable; // 变量名列表
-    ExtVarDecl(TypeSpec *type, const vector<pair<VarClass, Literal>> &names)
-        : ASTNode(ASTNodeType::ExtVarDecl), variable(names) {}
+    vector<VarDeclNode *> varDecls;
+    ExtVarDecl(const vector<VarDeclNode *> &vars)
+        : ASTNode(ASTNodeType::ExtVarDecl), varDecls(vars) {}
+    ~ExtVarDecl()
+    {
+        for (auto var : varDecls)
+        {
+            if (var)
+            {
+                delete var;
+            }
+        }
+    }
     void print(int indent = 0) const override
     {
         cout << string(indent, ' ') << "ExtVarDecl:\n";
-        for (const auto &var : variable)
+        for (const auto &var : varDecls)
         {
-            var.first.print(indent + 2);
-            var.second.print(indent + 2);
+            if (var)
+            {
+                var->print(indent + 2);
+            }
+            else
+            {
+                cout << string(indent + 2, ' ') << "Error: Null VarDecl\n";
+            }
         }
     }
 };
@@ -387,69 +512,6 @@ public:
     }
 };
 
-class VarDecl : public ASTNode
-{
-public:
-    TypeSpec *typeName;     // 变量类型
-    vector<pair<VarClass, Literal>> variable;
-    VarDecl(TypeSpec *type, const vector<pair<VarClass, Literal>> &names)
-        : ASTNode(ASTNodeType::VarDecl), typeName(type), variable(names) {}
-    ~VarDecl()
-    {
-        if (typeName)
-        {
-            delete typeName;
-        }
-    }
-    void print(int indent = 0) const override
-    {
-        if (typeName)
-        {
-            typeName->print(indent);
-        }
-        else
-        {
-            cout << string(indent, ' ') << "Error: Null TypeSpec\n";
-        }
-        for (const auto &var : variable)
-        {
-            cout << string(indent + 2, ' ') << "Var: " << var.first.name;
-            if (!var.second.value.empty())
-            {
-                cout << " = " << var.second.value;
-            }
-            cout << "\n";
-        }
-    }
-};
-
-class VarDeclList : public ASTNode
-{
-public:
-    VarDecl *varDecl = nullptr;
-    VarDeclList(VarDecl *decl)
-        : ASTNode(ASTNodeType::VarDeclList), varDecl(decl) {}
-    ~VarDeclList()
-    {
-        if (varDecl)
-        {
-            delete varDecl;
-        }
-    }
-    void print(int indent = 0) const override
-    {
-        cout << string(indent, ' ') << "VarDeclList:\n";
-        if (varDecl)
-        {
-            varDecl->print(indent + 2);
-        }
-        else
-        {
-            cout << string(indent + 2, ' ') << "Error: Null VarDecl\n";
-        }
-    }
-};
-
 class TypeDefNode : public ASTNode
 {
 public:
@@ -494,47 +556,46 @@ class CompoundStmt : public ASTNode
 public:
     vector<ASTNode *> vardecls;
     vector<ASTNode *> statements; // 语句列表
-    CompoundStmt() : ASTNode(ASTNodeType::CompoundStmt) {}
+    CompoundStmt(const vector<ASTNode *> &vars, const vector<ASTNode *> &stmts)
+        : ASTNode(ASTNodeType::CompoundStmt), vardecls(vars), statements(stmts) {}
     ~CompoundStmt()
     {
+        for (auto decl : vardecls)
+        {
+            if (decl)
+                delete decl;
+        }
         for (auto stmt : statements)
         {
             if (stmt)
-            {
                 delete stmt;
-            }
-        }
-    }
-    void addStatement(ASTNode *stmt)
-    {
-        if (stmt)
-        {
-            statements.push_back(stmt);
-        }
-        else
-        {
-            cout << "Warning: Attempted to add null statement to CompoundStmt\n";
         }
     }
     void print(int indent = 0) const override
     {
         cout << string(indent, ' ') << "CompoundStmt:\n";
-        for(auto decl : vardecls){
-            if(decl){
-                decl->print(indent + 2);
-            }else{
-                cout << string(indent + 2, ' ') << "Error: Null VarDecl\n";
-            }
-        }
-        for (auto stmt : statements)
+        cout << string(indent + 2, ' ') << "VarDecls:\n";
+        for (const auto &decl : vardecls)
         {
-            if (stmt)
+            if (decl)
             {
-                stmt->print(indent + 2);
+                decl->print(indent + 4);
             }
             else
             {
-                cout << string(indent + 2, ' ') << "Error: Null Statement\n";
+                cout << string(indent + 4, ' ') << "Error: Null VarDecl\n";
+            }
+        }
+        cout << string(indent + 2, ' ') << "Statements:\n";
+        for (const auto &stmt : statements)
+        {
+            if (stmt)
+            {
+                stmt->print(indent + 4);
+            }
+            else
+            {
+                cout << string(indent + 4, ' ') << "Error: Null Statement\n";
             }
         }
     }
@@ -670,27 +731,38 @@ public:
     }
 };
 
-class DoWhileStmt : public ASTNode{
-    public:
+class DoWhileStmt : public ASTNode
+{
+public:
     ASTNode *body;
     ASTNode *condition;
     DoWhileStmt(ASTNode *bdy, ASTNode *cond) : ASTNode(ASTNodeType::DoWhileStmt), body(bdy), condition(cond) {}
-    ~DoWhileStmt(){
-        if(body) delete body;
-        if(condition) delete condition;
+    ~DoWhileStmt()
+    {
+        if (body)
+            delete body;
+        if (condition)
+            delete condition;
     }
-    void print(int indent = 0) const override{
+    void print(int indent = 0) const override
+    {
         cout << string(indent, ' ') << "DoWhileStmt:\n";
-        if(body){
+        if (body)
+        {
             cout << string(indent + 2, ' ') << "Body:\n";
             body->print(indent + 4);
-        }else{
+        }
+        else
+        {
             cout << string(indent + 2, ' ') << "Error: Null Body\n";
         }
-        if(condition){
+        if (condition)
+        {
             cout << string(indent + 2, ' ') << "Condition:\n";
             condition->print(indent + 4);
-        }else{
+        }
+        else
+        {
             cout << string(indent + 2, ' ') << "Error: Null Condition\n";
         }
     }
@@ -954,6 +1026,16 @@ public:
     }
 };
 
+class EmptyStmt : public ASTNode
+{
+public:
+    EmptyStmt() : ASTNode(ASTNodeType::EmptyStmt) {}
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "EmptyStmt\n";
+    }
+};
+
 class BinaryExpr : public ASTNode
 {
 public:
@@ -999,11 +1081,11 @@ class Literal : public ASTNode
 public:
     string value;
     TokenType tokenType;
-    Literal() : ASTNode(ASTNodeType::Literal), value(""),tokenType(TokenType::NONE) {}
-    Literal(const string &val,TokenType lt) : ASTNode(ASTNodeType::Literal), value(val),tokenType(lt) {}
+    Literal() : ASTNode(ASTNodeType::Literal), value(""), tokenType(TokenType::NONE) {}
+    Literal(const string &val, TokenType lt) : ASTNode(ASTNodeType::Literal), value(val), tokenType(lt) {}
     void print(int indent = 0) const override
     {
-        if(!value.empty())
+        if (!value.empty())
         {
             cout << string(indent, ' ') << "Literal: " << value << "\n";
         }
@@ -1158,4 +1240,3 @@ public:
     }
 };
 */
-

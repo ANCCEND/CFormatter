@@ -995,6 +995,38 @@ public:
         lexeme += ch;
         return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
     }
+
+    Token peektoken()
+    {
+        auto currentPos = input.tellg();
+        int currentLine = line;
+        int currentColumn = column;
+        char currentCh = ch;
+
+        try
+        {
+            Token nextToken = gettoken();
+
+            input.clear(); // 清除EOF标志
+            input.seekg(currentPos);
+            line = currentLine;
+            column = currentColumn;
+            ch = currentCh;
+
+            return nextToken;
+        }
+        catch (...)
+        {
+            // Restore the lexer state in case of an exception
+            input.clear(); // 清除EOF标志
+            input.seekg(currentPos);
+            line = currentLine;
+            column = currentColumn;
+            ch = currentCh;
+
+            throw; // Re-throw the exception
+        }
+    }
 };
 
 class Parser
@@ -1088,30 +1120,39 @@ private:
         if (intCount && (floatCount || doubleCount))
             throwError("'int' cannot be combined with 'float' or 'double'");
     }
-    void arrVar(TypeSpec typeSpec, vector<string> &Names, vector<pair<VarClass, Literal>> variable)
+    VarInitList *arrInitList()
     {
-        while (currentToken.type == TokenType::LBRACKET)
+        eat(TokenType::LBRACE);
+        vector<ASTNode *> initList;
+        // 允许空初始化列表 {}
+        if (currentToken.type != TokenType::RBRACE)
         {
-            eat(TokenType::LBRACKET);
-            if (currentToken.type == TokenType::RBRACKET)
+            while (true)
             {
-                advance();
-                // 未指定大小的数组
-                eat(TokenType::ASSIGN);
-                eat(TokenType::LBRACE);
-                // 处理初始化列表
-            }
-            else if (currentToken.type == TokenType::INT_CONST)
-            {
-                int size = stoi(currentToken.lexeme);
-                eat(TokenType::INT_CONST);
-                eat(TokenType::RBRACKET);
-            }
-            else
-            {
-                throwError("expected ']' or array size");
+                if (currentToken.type == TokenType::LBRACE)
+                {
+                    initList.push_back(arrInitList()); // 嵌套初始化器
+                }
+                else
+                {
+                    initList.push_back(Expression()); // 普通表达式
+                }
+
+                if (currentToken.type == TokenType::COMMA)
+                {
+                    eat(TokenType::COMMA);
+                    // 允许逗号后直接右花括号，例如 {1,2,}
+                    if (currentToken.type == TokenType::RBRACE)
+                        break;
+                }
+                else
+                {
+                    break;
+                }
             }
         }
+        eat(TokenType::RBRACE);
+        return new VarInitList(initList);
     }
 
 public:
@@ -1130,11 +1171,6 @@ public:
         {
             throwError("expected token " + tokenTypeToString(expected) + ", got " + tokenTypeToString(currentToken.type));
         }
-    }
-    Token lookAhead()
-    {
-        return lexer.gettoken();
-        // 处理 nextToken
     }
 
     ASTNode *program()
@@ -1159,7 +1195,6 @@ public:
         }
         vector<string> typeName;
         bool HasStorageClass = false, HasTypeSpec = false;
-        int count = 0;
         // 处理存储类型
         while (isStorageType(currentToken.type))
         {
@@ -1200,16 +1235,17 @@ public:
             vector<string> Names;
             Names.push_back(currentToken.lexeme);
             eat(TokenType::IDENTIFIER);
-            if (currentToken.type == TokenType::LPAREN)
+            Token nextToken = lexer.peektoken();
+            if (nextToken.type == TokenType::LPAREN)
             {
                 // 函数定义或声明
 
                 return funcDeclOrDef(typeSpec, Names);
             }
-            else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::LBRACKET || currentToken.type == TokenType::ASSIGN)
+            else if (nextToken.type == TokenType::COMMA || nextToken.type == TokenType::SEMI || nextToken.type == TokenType::LBRACKET || nextToken.type == TokenType::ASSIGN)
             {
                 // 变量定义
-                return extVarDecl(typeSpec, Names);
+                return extVarDecl(typeSpec);
             }
             else
             {
@@ -1320,82 +1356,217 @@ public:
         }
     }
 
-    ASTNode *extVarDecl(TypeSpec *typeSpec, vector<string> &varNames)
+    ASTNode *extVarDecl(TypeSpec *typeSpec)
     {
-        vector<pair<VarClass, Literal>> variable;
+        vector<VarDeclNode *> varDecls;
+        string currentName;
         while (currentToken.type != TokenType::SEMI)
         {
-            if (currentToken.type == TokenType::LBRACKET)
+            if (currentToken.type == TokenType::IDENTIFIER)
             {
-                // 处理数组
-            }
-            else if (currentToken.type == TokenType::COMMA)
-            {
-                eat(TokenType::COMMA);
-                if (currentToken.type == TokenType::IDENTIFIER)
+                currentName = currentToken.lexeme;
+                eat(TokenType::IDENTIFIER);
+                if (currentToken.type == TokenType::SEMI)
                 {
-                    varNames.push_back(currentToken.lexeme);
-                    advance();
+                    varDecls.push_back(new VarDeclNode(typeSpec, currentName, {}, nullptr));
+                    break;
+                }
+                else if (currentToken.type == TokenType::LBRACKET)
+                {
+                    // 处理数组
+                    vector<ASTNode *> arraySizes;
+                    while (currentToken.type == TokenType::LBRACKET)
+                    {
+                        advance();
+                        if (currentToken.type != TokenType::RBRACKET)
+                        {
+                            arraySizes.push_back(Expression());
+                        }
+                        else
+                        {
+                            arraySizes.push_back(nullptr); // 未指定大小
+                        }
+                        eat(TokenType::RBRACKET);
+                    }
                     if (currentToken.type == TokenType::ASSIGN)
                     {
-                        // 处理初始化
+                        advance();
+                        VarInitList *initList = arrInitList();
+                        // 处理数组初始化
+                        varDecls.push_back(new VarDeclNode(typeSpec, currentName, arraySizes, initList));
+                        if (currentToken.type == TokenType::SEMI)
+                            break;
+                        else if (currentToken.type == TokenType::COMMA)
+                            eat(TokenType::COMMA);
+                        else
+                            throwError("unexpected token after array initialization");
                     }
+                    else if (currentToken.type == TokenType::COMMA || currentToken.type == TokenType::SEMI)
+                    {
+                        // 未初始化
+                        varDecls.push_back(new VarDeclNode(typeSpec, currentName, arraySizes, nullptr));
+                        if (currentToken.type == TokenType::SEMI)
+                            break;
+                        else
+                            eat(TokenType::COMMA);
+                    }
+                    else
+                    {
+                        throwError("expected '=' or ',' or ';' after array declaration");
+                    }
+                }
+                else if (currentToken.type == TokenType::COMMA)
+                {
+                    varDecls.push_back(new VarDeclNode(typeSpec, currentName, {}, nullptr));
+                    // 处理多个变量声明
+                    eat(TokenType::COMMA);
+                }
+                else if (currentToken.type == TokenType::ASSIGN)
+                {
+                    advance();
+                    // 处理初始化
+                    varDecls.push_back(new VarDeclNode(typeSpec, currentName, {}, Expression()));
+                    if (currentToken.type == TokenType::SEMI)
+                        break;
+                    else if (currentToken.type == TokenType::COMMA)
+                        eat(TokenType::COMMA);
+                    else
+                        throwError("unexpected token after variable initialization");
                 }
                 else
                 {
-                    throwError("expected IDENTIFIER after ',' in variable declaration");
+                    throwError("expected '[' or ',' or '=' or ';' after IDENTIFIER in variable declaration");
                 }
-            }
-            else if (currentToken.type == TokenType::ASSIGN)
-            {
-                // 处理初始化
             }
             else
             {
-                throwError("expected '[' or ',' or ';' after IDENTIFIER in variable declaration");
+                throwError("expected IDENTIFIER in variable declaration");
             }
         }
         eat(TokenType::SEMI);
-        return new ExtVarDecl(typeSpec, variable);
+        return new ExtVarDecl(varDecls);
     }
 
-    ASTNode *varDecl(TypeSpec *typeSpec, vector<string> &varNames)
+    ASTNode *localVarDecl()
     {
-        vector<pair<VarClass, Literal>> variable;
+        vector<string> typeName;
+        string currentName;
+        bool HasStorageClass = false, HasTypeSpec = false;
+        // 处理存储类型
+        while (isStorageType(currentToken.type))
+        {
+            if (HasStorageClass && isStorageType(currentToken.type))
+                throwError("multiple storage class specifiers");
+
+            HasStorageClass = true;
+            typeName.push_back(currentToken.lexeme);
+            advance();
+        }
+        // 处理类型说明符
+        while (currentToken.type == TokenType::VOID || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::INT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST)
+        {
+            if (currentToken.type != TokenType::CONST)
+            {
+                HasTypeSpec = true;
+            }
+            typeName.push_back(currentToken.lexeme);
+            advance();
+        }
+        if (HasTypeSpec == false)
+            throwError("expected type specifier");
+        checkTypeCombination(typeName);
+        TypeSpec *typeSpec = new TypeSpec(typeName);
+        if (currentToken.type != TokenType::IDENTIFIER)
+        {
+            throwError("expected IDENTIFIER in variable declaration");
+        }
+
+        vector<VarDeclNode *> varDecls;
         while (currentToken.type != TokenType::SEMI)
         {
-            if (currentToken.type == TokenType::LBRACKET)
+            if (currentToken.type == TokenType::IDENTIFIER)
             {
-                // 处理数组
-            }
-            else if (currentToken.type == TokenType::COMMA)
-            {
-                eat(TokenType::COMMA);
-                if (currentToken.type == TokenType::IDENTIFIER)
+                currentName = currentToken.lexeme;
+                eat(TokenType::IDENTIFIER);
+                if (currentToken.type == TokenType::SEMI)
                 {
-                    varNames.push_back(currentToken.lexeme);
-                    advance();
+                    varDecls.push_back(new VarDeclNode(typeSpec, currentName, {}, nullptr));
+                    break;
+                }
+                else if (currentToken.type == TokenType::LBRACKET)
+                {
+                    // 处理数组
+                    vector<ASTNode *> arraySizes;
+                    while (currentToken.type == TokenType::LBRACKET)
+                    {
+                        advance();
+                        if (currentToken.type != TokenType::RBRACKET)
+                        {
+                            arraySizes.push_back(Expression());
+                        }
+                        else
+                        {
+                            arraySizes.push_back(nullptr); // 未指定大小
+                        }
+                        eat(TokenType::RBRACKET);
+                    }
                     if (currentToken.type == TokenType::ASSIGN)
                     {
-                        // 处理初始化
+                        advance();
+                        VarInitList *initList = arrInitList();
+                        // 处理数组初始化
+                        varDecls.push_back(new VarDeclNode(typeSpec, currentName, arraySizes, initList));
+                        if (currentToken.type == TokenType::SEMI)
+                            break;
+                        else if (currentToken.type == TokenType::COMMA)
+                            eat(TokenType::COMMA);
+                        else
+                            throwError("unexpected token after array initialization");
                     }
+                    else if (currentToken.type == TokenType::COMMA || currentToken.type == TokenType::SEMI)
+                    {
+                        // 未初始化
+                        varDecls.push_back(new VarDeclNode(typeSpec, currentName, arraySizes, nullptr));
+                        if (currentToken.type == TokenType::SEMI)
+                            break;
+                        else
+                            eat(TokenType::COMMA);
+                    }
+                    else
+                    {
+                        throwError("expected '=' or ',' or ';' after array declaration");
+                    }
+                }
+                else if (currentToken.type == TokenType::COMMA)
+                {
+                    varDecls.push_back(new VarDeclNode(typeSpec, currentName, {}, nullptr));
+                    // 处理多个变量声明
+                    eat(TokenType::COMMA);
+                }
+                else if (currentToken.type == TokenType::ASSIGN)
+                {
+                    advance();
+                    // 处理初始化
+                    varDecls.push_back(new VarDeclNode(typeSpec, currentName, {}, Expression()));
+                    if (currentToken.type == TokenType::SEMI)
+                        break;
+                    else if (currentToken.type == TokenType::COMMA)
+                        eat(TokenType::COMMA);
+                    else
+                        throwError("unexpected token after variable initialization");
                 }
                 else
                 {
-                    throwError("expected IDENTIFIER after ',' in variable declaration");
+                    throwError("expected '[' or ',' or '=' or ';' after IDENTIFIER in variable declaration");
                 }
-            }
-            else if (currentToken.type == TokenType::ASSIGN)
-            {
-                // 处理初始化
             }
             else
             {
-                throwError("expected '[' or ',' or ';' after IDENTIFIER in variable declaration");
+                throwError("expected IDENTIFIER in variable declaration");
             }
         }
         eat(TokenType::SEMI);
-        return new VarDecl(typeSpec, variable);
+        return new LocalVarDecl(varDecls);
     }
 
     ASTNode *funcDeclOrDef(TypeSpec *FuncReturnType, vector<string> &FuncNames)
@@ -1468,7 +1639,8 @@ public:
             }
             eat(TokenType::RPAREN);
             eat(TokenType::SEMI);
-            for(auto &name : FuncNames) {
+            for (auto &name : FuncNames)
+            {
                 FuncNames.push_back(name);
             }
             return new FuncionDeclNode(FuncReturnType, FuncNames, allParams);
@@ -1517,39 +1689,142 @@ public:
     ASTNode *compoundStmt()
     {
         eat(TokenType::LBRACE);
+        vector<ASTNode *> localDecls;
+        vector<ASTNode *> statements;
     }
 
     ASTNode *statement()
     {
-        switch (currentToken.type)
+        if (currentToken.type == TokenType::IF)
         {
-        case TokenType::IF:
             return ifStatement();
-        case TokenType::WHILE:
+        }
+        else if (currentToken.type == TokenType::WHILE)
+        {
             return whileStatement();
-        case TokenType::FOR:
+        }
+        else if (currentToken.type == TokenType::DO)
+        {
+            return doWhileStatement();
+        }
+        else if (currentToken.type == TokenType::FOR)
+        {
             return forStatement();
-        case TokenType::RETURN:
+        }
+        else if (currentToken.type == TokenType::RETURN)
+        {
             return returnStatement();
-        case TokenType::SWITCH:
+        }
+        else if (currentToken.type == TokenType::SWITCH)
+        {
             return SwitchStatement();
-        case TokenType::BREAK:
+        }
+        else if (currentToken.type == TokenType::BREAK)
+        {
             return BreakStatement();
-        case TokenType::CONTINUE:
+        }
+        else if (currentToken.type == TokenType::CONTINUE)
+        {
             return ContinueStatement();
-        case TokenType::LBRACE:
+        }
+        else if (currentToken.type == TokenType::LBRACE)
+        {
             return compoundStmt();
-        default:
-            return Expression();
+        }
+        else if (currentToken.type == TokenType::SEMI)
+        {
+            eat(TokenType::SEMI);
+            return new EmptyStmt(); // 空语句
+        }
+        else if (currentToken.type == TokenType::VOID)
+        {
+            throwError("variable cannot be of type void");
+        }
+        else if (currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST || currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER)
+        {
+        }
+        else
+        {
+            auto expr = Expression();
+            eat(TokenType::SEMI);
+            return expr;
         }
     }
 
     ASTNode *ifStatement()
     {
+        eat(TokenType::IF);
+        if (currentToken.type != TokenType::LPAREN)
+            throwError("expected '(' after 'if'");
+        ASTNode *condition = Expression();
+        eat(TokenType::RPAREN);
+        ASTNode *thenBranch = nullptr;
+        if (currentToken.type == TokenType::LBRACE)
+        {
+            thenBranch = compoundStmt();
+        }
+        else
+        {
+            thenBranch = statement();
+        }
+        ASTNode *elseBranch = nullptr;
+        if (currentToken.type == TokenType::ELSE)
+        {
+            eat(TokenType::ELSE);
+            if (currentToken.type == TokenType::IF)
+            {
+                elseBranch = ifStatement();
+            }
+            else if (currentToken.type == TokenType::LBRACE)
+            {
+                elseBranch = compoundStmt();
+            }
+            else
+            {
+                elseBranch = statement();
+            }
+        }
     }
 
     ASTNode *whileStatement()
     {
+        ASTNode *condition = nullptr;
+        eat(TokenType::WHILE);
+        if (currentToken.type != TokenType::LPAREN)
+            throwError("expected '(' after 'while'");
+        condition = Expression();
+        eat(TokenType::RPAREN);
+        ASTNode *body = nullptr;
+        if (currentToken.type == TokenType::LBRACE)
+        {
+            body = compoundStmt();
+        }
+        else
+        {
+            body = statement();
+        }
+        return new WhileStmt(condition, body);
+    }
+
+    ASTNode *doWhileStatement()
+    {
+        eat(TokenType::DO);
+        ASTNode *body = nullptr;
+        if (currentToken.type == TokenType::LBRACE)
+        {
+            body = compoundStmt();
+        }
+        else
+        {
+            body = statement();
+        }
+        eat(TokenType::WHILE);
+        if (currentToken.type != TokenType::LPAREN)
+            throwError("expected '(' after 'while'");
+        ASTNode *condition = Expression();
+        eat(TokenType::RPAREN);
+        eat(TokenType::SEMI);
+        return new DoWhileStmt(body, condition);
     }
 
     ASTNode *forStatement()
@@ -1560,13 +1835,35 @@ public:
         ASTNode *condition = nullptr;
         ASTNode *increment = nullptr;
         ASTNode *body = nullptr;
-        if (currentToken.type != TokenType::SEMI){
-            if(currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST){
+        if (currentToken.type != TokenType::SEMI)
+        {
+            if (currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST)
+            {
                 init = statement();
-            } else {
+            }
+            else
+            {
                 init = Expression();
             }
         }
+        if (currentToken.type != TokenType::SEMI)
+        {
+            condition = Expression();
+        }
+        if (currentToken.type != TokenType::RPAREN)
+        {
+            increment = Expression();
+        }
+        eat(TokenType::RPAREN);
+        if (currentToken.type == TokenType::LBRACE)
+        {
+            body = compoundStmt();
+        }
+        else
+        {
+            body = statement();
+        }
+        return new ForStmt(init, condition, increment, body);
     }
 
     ASTNode *returnStatement()
@@ -1644,9 +1941,19 @@ public:
 
     ASTNode *Expression()
     {
-        if(currentToken.type==TokenType::IDENTIFIER){
-            
+        if (currentToken.type == TokenType::IDENTIFIER)
+        {
+            Token nextToken = lexer.peektoken();
+            if (nextToken.type == TokenType::LPAREN)
+            {
+                return funcCall(nextToken);
+            }
+            else
+            {
+                return binaryExpression();
+            }
         }
+        return binaryExpression();
     }
 
     ASTNode *funcCall(Token nextToken)
@@ -1666,6 +1973,7 @@ public:
             }
         }
         eat(TokenType::RPAREN);
+        eat(TokenType::SEMI);
         return new FuncCallExpr(funcName, args);
     }
 
@@ -1705,7 +2013,7 @@ public:
         BinaryExpr *root = nullptr;
         do
         {
-            if (find(constants.begin(), constants.end(), currentToken.type) != constants.end())
+            if (find(constants.begin(), constants.end(), currentToken.type) != constants.end() || currentToken.type == TokenType::IDENTIFIER)
             {
                 // 处理操作数
                 valStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme));
@@ -1801,6 +2109,8 @@ public:
         }
         root = valStack.top();
         valStack.pop();
+        if (currentToken.type == TokenType::SEMI)
+            eat(TokenType::SEMI);
         return root;
     }
 };
