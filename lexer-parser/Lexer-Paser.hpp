@@ -4,118 +4,10 @@
 #include <vector>
 #include <algorithm>
 #include <stack>
+#include <unordered_map>
 #include "ASTNodes.hpp"
 
 using namespace std;
-
-enum class TokenType
-{
-    ERROR,
-    IDENTIFIER,
-
-    VOID,
-    CHAR,
-    SHORT,
-    UNSIGNED,
-    SIGNED,
-    INT,
-    LONG,
-    FLOAT,
-    DOUBLE,
-
-    CHAR_CONST,
-    INT_CONST,
-    FLOAT_CONST,
-    LONG_CONST,
-    DOUBLE_CONST,
-    LONG_LONG_CONST,
-    USIGNED_INT_CONST,
-    UNSIGNED_LONG_CONST,
-    UNSIGNED_LONG_LONG_CONST,
-
-    IF,
-    ELSE,
-    SWITCH,
-    WHILE,
-    DO,
-    FOR,
-    BREAK,
-    CONTINUE,
-    RETURN,
-    SIZEOF,
-    TYPEDEF,
-    DEFAULT,
-    CASE,
-    STATIC,
-    EXTERN,
-    REGISTER,
-    CONST,
-    STRUCT,
-    UNION,
-    ENUM,
-
-    INCLUDE,
-    DEFINE,
-    UNDEF,
-
-    ADD,
-    DIV,
-    MOD,
-    MUL,
-    ASSIGN,
-    SUB,
-    ADD_ASSIGN,
-    DIV_ASSIGN,
-    MOD_ASSIGN,
-    MUL_ASSIGN,
-    SUB_ASSIGN,
-    LEFT_SHIFT,
-    RIGHT_SHIFT, // <<, >>
-    BITWISE_AND,
-    BITWISE_OR,
-    BITWISE_XOR, // &, |, ^
-    BITWISE_NOT, // ~
-    INCREMENT,
-    DECREMENT, // ++, --
-    ARROW,     // ->
-    AND,
-    OR,
-    NOT, // &&, ||, !
-    LEFT_SHIFT_ASSIGN,
-    RIGHT_SHIFT_ASSIGN,
-    AND_ASSIGN,
-    OR_ASSIGN,
-    NOT_ASSIGN,
-    BITWISE_AND_ASSIGN,
-    BITWISE_OR_ASSIGN,
-    BITWISE_XOR_ASSIGN, // <<=, >>=, &=, |=, ^=
-    EQUAL,
-    NOT_EQUAL,
-    LESS_THAN,
-    GREATER_THAN,
-    LESS_EQUAL,
-    GREATER_EQUAL, // ==, !=, <, >, <=, >=
-
-    STRING,
-    LPAREN,   // (
-    RPAREN,   // )
-    LBRACE,   // {
-    RBRACE,   // }
-    LBRACKET, // [
-    RBRACKET, // ]
-    DOT,
-    COMMA,
-    SEMI,      // ;
-    HASHTAG,   // #
-    COLON,     // :
-    QUESTMARK, // ?
-
-    SIGNAL_COMMENT, // //
-    BLOCK_COMMENT,  // /* */
-    END_OF_FILE,
-
-    NONE
-};
 
 struct Token
 {
@@ -312,6 +204,11 @@ inline std::string tokenTypeToString(TokenType type)
     return "UNKNOWN";
 }
 
+void printToken(Token token)
+{
+    cout << "Token(Type: " << tokenTypeToString(token.type) << ", Lexeme: \"" << token.lexeme << "\", Line: " << token.line << ", Column: " << token.column << ")\n";
+}
+
 class Lexer
 {
 private:
@@ -359,7 +256,6 @@ public:
             return Token(TokenType::END_OF_FILE, "", line, column);
         string lexeme;
         int tokenLine = line, tokenColumn = column;
-
         if (isalpha(ch) || ch == '_')
         {
             while (isalnum(ch) || ch == '_')
@@ -726,7 +622,10 @@ public:
             else if (ch == '/')
             {
                 while (ch != '\n' && ch != EOF)
+                {
+                    lexeme += ch;
                     next();
+                }
                 return Token(TokenType::SIGNAL_COMMENT, lexeme, tokenLine, tokenColumn);
             }
             else if (ch == '*')
@@ -747,6 +646,7 @@ public:
                     }
                     else
                     {
+                        lexeme += ch;
                         next();
                     }
                 }
@@ -1006,6 +906,10 @@ public:
         try
         {
             Token nextToken = gettoken();
+            while (nextToken.type == TokenType::SIGNAL_COMMENT || nextToken.type == TokenType::BLOCK_COMMENT)
+            {
+                nextToken = gettoken();
+            }
 
             input.clear(); // 清除EOF标志
             input.seekg(currentPos);
@@ -1044,7 +948,7 @@ private:
     }
     bool isStorageType(TokenType t)
     {
-        return t == TokenType::STATIC || t == TokenType::EXTERN || t == TokenType::REGISTER; // || t == TokenType::CONST || t == TokenType::TYPEDEF;
+        return t == TokenType::STATIC || t == TokenType::EXTERN || t == TokenType::REGISTER;
     }
     void checkTypeCombination(const std::vector<std::string> &typeName)
     {
@@ -1122,6 +1026,7 @@ private:
     }
     VarInitList *arrInitList()
     {
+        cout<<"arrInitList"<<endl;
         eat(TokenType::LBRACE);
         vector<ASTNode *> initList;
         // 允许空初始化列表 {}
@@ -1160,6 +1065,10 @@ public:
     void advance()
     {
         currentToken = lexer.gettoken();
+        while (currentToken.type == TokenType::SIGNAL_COMMENT || currentToken.type == TokenType::BLOCK_COMMENT)
+        {
+            advance();
+        }
     }
     void eat(TokenType expected)
     {
@@ -1175,6 +1084,7 @@ public:
 
     ASTNode *program()
     {
+        cout << "program" << endl;
         auto node = new ProgramNode();
         while (currentToken.type != TokenType::END_OF_FILE)
         {
@@ -1183,12 +1093,19 @@ public:
                 node->extdeflists.push_back(ext);
             else
             {
+                throwError("invalid external definition");
             }
         }
+        return node;
     }
 
     ASTNode *extdef()
     {
+        cout << "extdef" << endl;
+        if (currentToken.type == TokenType::SIGNAL_COMMENT || currentToken.type == TokenType::BLOCK_COMMENT)
+        {
+            advance();
+        }
         if (currentToken.type == TokenType::HASHTAG)
         {
             return preProcessor();
@@ -1234,7 +1151,8 @@ public:
         {
             vector<string> Names;
             Names.push_back(currentToken.lexeme);
-            eat(TokenType::IDENTIFIER);
+            tokenTypeToString(currentToken.type);
+
             Token nextToken = lexer.peektoken();
             if (nextToken.type == TokenType::LPAREN)
             {
@@ -1254,10 +1172,12 @@ public:
         }
         else
             throwError("expected IDENTIFIER");
+        return nullptr;
     }
 
     ASTNode *preProcessor()
     {
+        cout << "preprocessor" << endl;
         eat(TokenType::HASHTAG);
         if (currentToken.type == TokenType::INCLUDE)
         {
@@ -1332,8 +1252,13 @@ public:
             {
                 directive += currentToken.lexeme;
                 eat(TokenType::IDENTIFIER);
+                int line = currentToken.line;
                 while (currentToken.type != TokenType::END_OF_FILE && currentToken.type != TokenType::SEMI && currentToken.type != TokenType::HASHTAG)
                 {
+                    if (currentToken.line != line && currentToken.type != TokenType::DIV)
+                    { // 遇到换行且不是除号则结束
+                        break;
+                    }
                     directive += ' ' + currentToken.lexeme;
                     advance();
                 }
@@ -1358,6 +1283,7 @@ public:
 
     ASTNode *extVarDecl(TypeSpec *typeSpec)
     {
+        cout << "extvaldecl" << endl;
         vector<VarDeclNode *> varDecls;
         string currentName;
         while (currentToken.type != TokenType::SEMI)
@@ -1449,6 +1375,7 @@ public:
 
     ASTNode *localVarDecl()
     {
+        cout << "localvaldecl" << endl;
         vector<string> typeName;
         string currentName;
         bool HasStorageClass = false, HasTypeSpec = false;
@@ -1528,7 +1455,10 @@ public:
                         // 未初始化
                         varDecls.push_back(new VarDeclNode(typeSpec, currentName, arraySizes, nullptr));
                         if (currentToken.type == TokenType::SEMI)
+                        {
+                            eat(TokenType::SEMI);
                             break;
+                        }
                         else
                             eat(TokenType::COMMA);
                     }
@@ -1571,8 +1501,11 @@ public:
 
     ASTNode *funcDeclOrDef(TypeSpec *FuncReturnType, vector<string> &FuncNames)
     {
+        cout << "fundeclordef" << endl;
+        eat(TokenType::IDENTIFIER);
         eat(TokenType::LPAREN);
         vector<vector<pair<TypeSpec *, string>>> allParams;
+
         while (currentToken.type != TokenType::RPAREN)
         {
             vector<pair<TypeSpec *, string>> params;
@@ -1585,16 +1518,34 @@ public:
                 {
                     HasTypeSpec = true;
                 }
+                if (currentToken.type == TokenType::VOID && paramTypeName.size() > 0)
+                {
+                    throwError("'void' must be the only type specifier in parameter");
+                }
                 paramTypeName.push_back(currentToken.lexeme);
                 advance();
             }
+            // printToken(currentToken);
             if (HasTypeSpec == false)
+            {
                 throwError("expected type specifier in function parameter");
+            }
             checkTypeCombination(paramTypeName);
             TypeSpec *paramTypeSpec = new TypeSpec(paramTypeName);
 
             // 处理参数名
-            if (currentToken.type == TokenType::IDENTIFIER)
+            if (paramTypeName.size() == 1 && paramTypeName[0] == "void")
+            {
+                // 参数类型为void，表示无参数
+                if (currentToken.type != TokenType::RPAREN)
+                {
+                    throwError("expected ')' after 'void' in function parameter");
+                }
+                allParams.push_back(params);
+                break;
+            }
+
+            else if (currentToken.type == TokenType::IDENTIFIER)
             {
                 string paramName = currentToken.lexeme;
                 eat(TokenType::IDENTIFIER);
@@ -1611,7 +1562,6 @@ public:
             {
                 eat(TokenType::COMMA);
             }
-            eat(TokenType::RPAREN);
         }
         eat(TokenType::RPAREN);
         if (currentToken.type == TokenType::SEMI)
@@ -1651,10 +1601,16 @@ public:
             ASTNode *body = compoundStmt();
             return new FunctionDef(FuncReturnType, FuncNames[0], allParams[0], body);
         }
+        else
+        {
+            throwError("unexpected token after function parameter list");
+        }
+        return nullptr;
     }
 
     ASTNode *typeDef()
     {
+        cout << "typedef" << endl;
         bool HasTypeSpec = false;
         vector<string> typeName;
 
@@ -1684,17 +1640,33 @@ public:
         }
         if (hasTypeDefName == false)
             throwError("expected IDENTIFIER after typedef");
+        return nullptr;
     }
 
     ASTNode *compoundStmt()
     {
+        cout << "compoundstmt" << endl;
         eat(TokenType::LBRACE);
         vector<ASTNode *> localDecls;
         vector<ASTNode *> statements;
+        while (currentToken.type != TokenType::RBRACE)
+        {
+            if (currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST || isStorageType(currentToken.type))
+            {
+                localDecls.push_back(localVarDecl());
+            }
+            else
+            {
+                statements.push_back(statement());
+            }
+        }
+        eat(TokenType::RBRACE);
+        return new CompoundStmt(localDecls, statements);
     }
 
     ASTNode *statement()
     {
+        cout << "statement" << endl;
         if (currentToken.type == TokenType::IF)
         {
             return ifStatement();
@@ -1742,6 +1714,7 @@ public:
         }
         else if (currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST || currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER)
         {
+            return localVarDecl();
         }
         else
         {
@@ -1749,10 +1722,12 @@ public:
             eat(TokenType::SEMI);
             return expr;
         }
+        return nullptr;
     }
 
     ASTNode *ifStatement()
     {
+        cout << "ifstmt" << endl;
         eat(TokenType::IF);
         if (currentToken.type != TokenType::LPAREN)
             throwError("expected '(' after 'if'");
@@ -1784,10 +1759,12 @@ public:
                 elseBranch = statement();
             }
         }
+        return new IfStmt(condition, thenBranch, elseBranch);
     }
 
     ASTNode *whileStatement()
     {
+        cout << "whilestmt" << endl;
         ASTNode *condition = nullptr;
         eat(TokenType::WHILE);
         if (currentToken.type != TokenType::LPAREN)
@@ -1808,6 +1785,7 @@ public:
 
     ASTNode *doWhileStatement()
     {
+        cout << "dowhilestmt" << endl;
         eat(TokenType::DO);
         ASTNode *body = nullptr;
         if (currentToken.type == TokenType::LBRACE)
@@ -1829,6 +1807,7 @@ public:
 
     ASTNode *forStatement()
     {
+        cout << "forstmt" << endl;
         eat(TokenType::FOR);
         eat(TokenType::LPAREN);
         ASTNode *init = nullptr;
@@ -1868,6 +1847,7 @@ public:
 
     ASTNode *returnStatement()
     {
+        cout << "returnstmt" << endl;
         eat(TokenType::RETURN);
         ASTNode *expr = nullptr;
         if (currentToken.type != TokenType::SEMI)
@@ -1880,6 +1860,7 @@ public:
 
     ASTNode *SwitchStatement()
     {
+        cout << "switchstmt" << endl;
         eat(TokenType::SWITCH);
         eat(TokenType::LPAREN);
         auto expr = Expression();
@@ -1923,10 +1904,13 @@ public:
                 throwError("expected 'case' or 'default' in switch statement");
             }
         }
+        eat(TokenType::RBRACE);
+        return new SwitchStmt(expr, cases, defaultCase);
     }
 
     ASTNode *BreakStatement()
     {
+        cout << "breakstmt" << endl;
         eat(TokenType::BREAK);
         eat(TokenType::SEMI);
         return new BreakStmt();
@@ -1934,6 +1918,7 @@ public:
 
     ASTNode *ContinueStatement()
     {
+        cout << "continuestmt" << endl;
         eat(TokenType::CONTINUE);
         eat(TokenType::SEMI);
         return new ContinueStmt();
@@ -1941,6 +1926,7 @@ public:
 
     ASTNode *Expression()
     {
+        cout << "expression" << endl;
         if (currentToken.type == TokenType::IDENTIFIER)
         {
             Token nextToken = lexer.peektoken();
@@ -1958,6 +1944,7 @@ public:
 
     ASTNode *funcCall(Token nextToken)
     {
+        cout << "funccall" << endl;
         string funcName = currentToken.lexeme;
         eat(TokenType::IDENTIFIER);
         currentToken = nextToken;
@@ -1979,6 +1966,7 @@ public:
 
     ASTNode *binaryExpression()
     {
+        cout << "binaryexpression" << endl;
         const vector<TokenType> operators = {
             TokenType::OR, TokenType::AND,
             TokenType::BITWISE_OR, TokenType::BITWISE_XOR, TokenType::BITWISE_AND,
@@ -2076,7 +2064,7 @@ public:
                 opStack.pop(); // 弹出左括号
                 advance();
             }
-            else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA)
+            else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::RBRACKET || currentToken.type == TokenType::RBRACE)
             {
                 // 表达式结束
                 break;
@@ -2109,8 +2097,6 @@ public:
         }
         root = valStack.top();
         valStack.pop();
-        if (currentToken.type == TokenType::SEMI)
-            eat(TokenType::SEMI);
         return root;
     }
 };
