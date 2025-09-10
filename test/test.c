@@ -1,4 +1,8 @@
 #include <stdio.h>
+
+int a(int x){
+    1+1;
+}
 int main()
 {
     int n;

@@ -153,6 +153,8 @@ enum class TokenType
 
     SIGNAL_COMMENT, // //
     BLOCK_COMMENT,  // /* */
+    BACKSLASH,      // 续行符
+
     END_OF_FILE,
 
     NONE

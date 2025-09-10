@@ -891,6 +891,13 @@ public:
             next();
             return Token(TokenType::QUESTMARK, lexeme, tokenLine, tokenColumn);
         }
+        else if (ch == '\\')
+        {
+            // 处理行继续符
+            lexeme += ch;
+            next();
+            return Token(TokenType::BACKSLASH, lexeme, tokenLine, tokenColumn);
+        }
 
         lexeme += ch;
         return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
@@ -1091,6 +1098,8 @@ public:
         while (currentToken.type != TokenType::END_OF_FILE)
         {
             auto ext = extdef();
+            if (debug)
+                cout << "extdef-parsed" << endl;
             if (ext)
                 node->extdeflists.push_back(ext);
             else
@@ -1104,7 +1113,7 @@ public:
     ASTNode *extdef()
     {
         if (debug)
-            cout << "extdef" << endl;
+            cout << "extdef " << currentToken.lexeme << endl;
         if (currentToken.type == TokenType::SIGNAL_COMMENT || currentToken.type == TokenType::BLOCK_COMMENT)
         {
             advance();
@@ -1161,7 +1170,10 @@ public:
             {
                 // 函数定义或声明
 
-                return funcDeclOrDef(typeSpec, Names);
+                ASTNode *nodetest = funcDeclOrDef(typeSpec, Names);
+                if (debug)
+                    cout << "funcDeclOrDef-parsed" << endl;
+                return nodetest;
             }
             else if (nextToken.type == TokenType::COMMA || nextToken.type == TokenType::SEMI || nextToken.type == TokenType::LBRACKET || nextToken.type == TokenType::ASSIGN)
             {
@@ -1181,7 +1193,7 @@ public:
     ASTNode *preProcessor()
     {
         if (debug)
-            cout << "preprocessor" << endl;
+            cout << "preprocessor " << endl;
         eat(TokenType::HASHTAG);
         if (currentToken.type == TokenType::INCLUDE)
         {
@@ -1257,12 +1269,19 @@ public:
                 directive += currentToken.lexeme;
                 eat(TokenType::IDENTIFIER);
                 int line = currentToken.line;
-                while (currentToken.type != TokenType::END_OF_FILE && currentToken.type != TokenType::SEMI && currentToken.type != TokenType::HASHTAG)
+                while (currentToken.type != TokenType::END_OF_FILE)
                 {
-                    if (currentToken.line != line && currentToken.type != TokenType::DIV)
-                    { // 遇到换行且不是除号则结束
-                        break;
+                    if (currentToken.type == TokenType::BACKSLASH){
+                        eat(TokenType::BACKSLASH);
+                        if (currentToken.type == TokenType::END_OF_FILE)
+                            break;
+                        if (currentToken.line == line)
+                            throwError("expected newline after '\\'");
+                        line = currentToken.line;
                     }
+                    if (currentToken.line != line)
+                        break;
+                        
                     directive += ' ' + currentToken.lexeme;
                     advance();
                 }
@@ -1270,19 +1289,14 @@ public:
             }
             else
             {
-                throw std::runtime_error(
-                    "Syntax error at line " + std::to_string(currentToken.line) +
-                    ", column " + std::to_string(currentToken.column) +
-                    ": expected IDENTIFIER after #define");
+                throwError("expected IDENTIFIER after #define");
             }
         }
         else
         {
-            throw std::runtime_error(
-                "Syntax error at line " + std::to_string(currentToken.line) +
-                ", column " + std::to_string(currentToken.column) +
-                ": expected 'include' or 'define' after '#'");
+            throwError("expected 'include' or 'define' after '#'");
         }
+        return nullptr;
     }
 
     ASTNode *extVarDecl(TypeSpec *typeSpec)
@@ -1607,6 +1621,23 @@ public:
         {
             // 函数定义
             ASTNode *body = compoundStmt();
+            if (debug)
+            {
+                cout << "func-body-parsed" << endl;
+                if (FuncNames.size() == 0)
+                {
+                    throwError("function must have a name");
+                }
+            }
+            if (allParams.size() == 0)
+            {
+                allParams.push_back({}); // 无参数
+            }
+            if (FuncNames.size() == 0)
+            {
+                throwError("function must have a name");
+            }
+
             return new FunctionDef(FuncReturnType, FuncNames[0], allParams[0], body);
         }
         else
@@ -1678,6 +1709,7 @@ public:
     {
         if (debug)
             cout << "statement" << endl;
+        printToken(currentToken);
         if (currentToken.type == TokenType::IF)
         {
             return ifStatement();
@@ -1911,6 +1943,8 @@ public:
         if (currentToken.type != TokenType::SEMI)
         {
             expr = Expression();
+            if (debug)
+                cout << "return-expr-parsed" << endl;
         }
         eat(TokenType::SEMI);
         return new ReturnStmt(expr);
@@ -2168,6 +2202,7 @@ public:
             else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::RBRACKET || currentToken.type == TokenType::RBRACE)
             {
                 // 表达式结束
+                cout << "expression-end" << endl;
                 break;
             }
             else
@@ -2256,6 +2291,8 @@ public:
         BinaryExpr *root = nullptr;
         do
         {
+            if (debug)
+                printToken(currentToken);
             if (find(constants.begin(), constants.end(), currentToken.type) != constants.end() || currentToken.type == TokenType::IDENTIFIER)
             {
                 // 处理操作数
