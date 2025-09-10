@@ -939,6 +939,7 @@ private:
     Lexer lexer;
     Token currentToken;
     vector<string> funcNames; // 用于存储函数名
+    bool debug = false;
     void throwError(const string &message)
     {
         throw std::runtime_error(
@@ -1026,7 +1027,7 @@ private:
     }
     VarInitList *arrInitList()
     {
-        cout<<"arrInitList"<<endl;
+        cout << "arrInitList" << endl;
         eat(TokenType::LBRACE);
         vector<ASTNode *> initList;
         // 允许空初始化列表 {}
@@ -1061,7 +1062,7 @@ private:
     }
 
 public:
-    Parser(istream &in) : lexer(in), currentToken(lexer.gettoken()) {};
+    Parser(istream &in, bool debug) : lexer(in), currentToken(lexer.gettoken()), debug(debug) {};
     void advance()
     {
         currentToken = lexer.gettoken();
@@ -1084,7 +1085,8 @@ public:
 
     ASTNode *program()
     {
-        cout << "program" << endl;
+        if (debug)
+            cout << "program" << endl;
         auto node = new ProgramNode();
         while (currentToken.type != TokenType::END_OF_FILE)
         {
@@ -1101,7 +1103,8 @@ public:
 
     ASTNode *extdef()
     {
-        cout << "extdef" << endl;
+        if (debug)
+            cout << "extdef" << endl;
         if (currentToken.type == TokenType::SIGNAL_COMMENT || currentToken.type == TokenType::BLOCK_COMMENT)
         {
             advance();
@@ -1177,7 +1180,8 @@ public:
 
     ASTNode *preProcessor()
     {
-        cout << "preprocessor" << endl;
+        if (debug)
+            cout << "preprocessor" << endl;
         eat(TokenType::HASHTAG);
         if (currentToken.type == TokenType::INCLUDE)
         {
@@ -1283,7 +1287,8 @@ public:
 
     ASTNode *extVarDecl(TypeSpec *typeSpec)
     {
-        cout << "extvaldecl" << endl;
+        if (debug)
+            cout << "extvaldecl" << endl;
         vector<VarDeclNode *> varDecls;
         string currentName;
         while (currentToken.type != TokenType::SEMI)
@@ -1375,7 +1380,8 @@ public:
 
     ASTNode *localVarDecl()
     {
-        cout << "localvaldecl" << endl;
+        if (debug)
+            cout << "localvaldecl" << endl;
         vector<string> typeName;
         string currentName;
         bool HasStorageClass = false, HasTypeSpec = false;
@@ -1501,7 +1507,8 @@ public:
 
     ASTNode *funcDeclOrDef(TypeSpec *FuncReturnType, vector<string> &FuncNames)
     {
-        cout << "fundeclordef" << endl;
+        if (debug)
+            cout << "fundeclordef" << endl;
         eat(TokenType::IDENTIFIER);
         eat(TokenType::LPAREN);
         vector<vector<pair<TypeSpec *, string>>> allParams;
@@ -1610,7 +1617,8 @@ public:
 
     ASTNode *typeDef()
     {
-        cout << "typedef" << endl;
+        if (debug)
+            cout << "typedef" << endl;
         bool HasTypeSpec = false;
         vector<string> typeName;
 
@@ -1645,7 +1653,8 @@ public:
 
     ASTNode *compoundStmt()
     {
-        cout << "compoundstmt" << endl;
+        if (debug)
+            cout << "compoundstmt" << endl;
         eat(TokenType::LBRACE);
         vector<ASTNode *> localDecls;
         vector<ASTNode *> statements;
@@ -1666,7 +1675,8 @@ public:
 
     ASTNode *statement()
     {
-        cout << "statement" << endl;
+        if (debug)
+            cout << "statement" << endl;
         if (currentToken.type == TokenType::IF)
         {
             return ifStatement();
@@ -1716,7 +1726,50 @@ public:
         {
             return localVarDecl();
         }
-        else
+        else if (currentToken.type == TokenType::IDENTIFIER)
+        {
+            Token nextToken = lexer.peektoken();
+            if (nextToken.type == TokenType::ASSIGN)
+            {
+                return assignExpression();
+            }
+            else if (nextToken.type == TokenType::LBRACKET)
+            {
+                string varName = currentToken.lexeme;
+                eat(TokenType::IDENTIFIER);
+                while (currentToken.type == TokenType::LBRACKET)
+                {
+                    varName += "[";
+                    eat(TokenType::LBRACKET);
+                    while (currentToken.type != TokenType::RBRACKET)
+                    {
+                        varName += currentToken.lexeme;
+                        advance();
+                    }
+                    varName += "]";
+                    eat(TokenType::RBRACKET);
+                }
+                if (currentToken.type == TokenType::ASSIGN)
+                {
+                    eat(TokenType::ASSIGN);
+                    auto expr = Expression();
+                    eat(TokenType::SEMI);
+                    return new AssignExpr(varName, expr);
+                }
+                else
+                {
+                    throwError("expected '=' after array variable");
+                }
+            }
+            else
+            {
+                auto expr = Expression();
+                eat(TokenType::SEMI);
+                return expr;
+            }
+        }
+
+        else if (find(constants.begin(), constants.end(), currentToken.type) != constants.end())
         {
             auto expr = Expression();
             eat(TokenType::SEMI);
@@ -1727,12 +1780,12 @@ public:
 
     ASTNode *ifStatement()
     {
-        cout << "ifstmt" << endl;
+        if (debug)
+            cout << "ifstmt" << endl;
         eat(TokenType::IF);
         if (currentToken.type != TokenType::LPAREN)
             throwError("expected '(' after 'if'");
         ASTNode *condition = Expression();
-        eat(TokenType::RPAREN);
         ASTNode *thenBranch = nullptr;
         if (currentToken.type == TokenType::LBRACE)
         {
@@ -1764,13 +1817,13 @@ public:
 
     ASTNode *whileStatement()
     {
-        cout << "whilestmt" << endl;
+        if (debug)
+            cout << "whilestmt" << endl;
         ASTNode *condition = nullptr;
         eat(TokenType::WHILE);
         if (currentToken.type != TokenType::LPAREN)
             throwError("expected '(' after 'while'");
         condition = Expression();
-        eat(TokenType::RPAREN);
         ASTNode *body = nullptr;
         if (currentToken.type == TokenType::LBRACE)
         {
@@ -1785,7 +1838,8 @@ public:
 
     ASTNode *doWhileStatement()
     {
-        cout << "dowhilestmt" << endl;
+        if (debug)
+            cout << "dowhilestmt" << endl;
         eat(TokenType::DO);
         ASTNode *body = nullptr;
         if (currentToken.type == TokenType::LBRACE)
@@ -1800,14 +1854,14 @@ public:
         if (currentToken.type != TokenType::LPAREN)
             throwError("expected '(' after 'while'");
         ASTNode *condition = Expression();
-        eat(TokenType::RPAREN);
         eat(TokenType::SEMI);
         return new DoWhileStmt(body, condition);
     }
 
     ASTNode *forStatement()
     {
-        cout << "forstmt" << endl;
+        if (debug)
+            cout << "forstmt" << endl;
         eat(TokenType::FOR);
         eat(TokenType::LPAREN);
         ASTNode *init = nullptr;
@@ -1816,24 +1870,17 @@ public:
         ASTNode *body = nullptr;
         if (currentToken.type != TokenType::SEMI)
         {
-            if (currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST)
-            {
-                init = statement();
-            }
-            else
-            {
-                init = Expression();
-            }
+            init = statement();
         }
         if (currentToken.type != TokenType::SEMI)
         {
             condition = Expression();
+            eat(TokenType::SEMI);
         }
         if (currentToken.type != TokenType::RPAREN)
         {
-            increment = Expression();
+            increment = statement();
         }
-        eat(TokenType::RPAREN);
         if (currentToken.type == TokenType::LBRACE)
         {
             body = compoundStmt();
@@ -1847,7 +1894,8 @@ public:
 
     ASTNode *returnStatement()
     {
-        cout << "returnstmt" << endl;
+        if (debug)
+            cout << "returnstmt" << endl;
         eat(TokenType::RETURN);
         ASTNode *expr = nullptr;
         if (currentToken.type != TokenType::SEMI)
@@ -1860,7 +1908,8 @@ public:
 
     ASTNode *SwitchStatement()
     {
-        cout << "switchstmt" << endl;
+        if (debug)
+            cout << "switchstmt" << endl;
         eat(TokenType::SWITCH);
         eat(TokenType::LPAREN);
         auto expr = Expression();
@@ -1910,7 +1959,8 @@ public:
 
     ASTNode *BreakStatement()
     {
-        cout << "breakstmt" << endl;
+        if (debug)
+            cout << "breakstmt" << endl;
         eat(TokenType::BREAK);
         eat(TokenType::SEMI);
         return new BreakStmt();
@@ -1918,33 +1968,29 @@ public:
 
     ASTNode *ContinueStatement()
     {
-        cout << "continuestmt" << endl;
+        if (debug)
+            cout << "continuestmt" << endl;
         eat(TokenType::CONTINUE);
         eat(TokenType::SEMI);
         return new ContinueStmt();
     }
 
-    ASTNode *Expression()
+    ASTNode *assignExpression()
     {
-        cout << "expression" << endl;
-        if (currentToken.type == TokenType::IDENTIFIER)
-        {
-            Token nextToken = lexer.peektoken();
-            if (nextToken.type == TokenType::LPAREN)
-            {
-                return funcCall(nextToken);
-            }
-            else
-            {
-                return binaryExpression();
-            }
-        }
-        return binaryExpression();
+        if (debug)
+            cout << "assignexpression" << endl;
+        string indentifier = currentToken.lexeme;
+        eat(TokenType::IDENTIFIER);
+        eat(TokenType::ASSIGN);
+        auto expr = Expression();
+        advance();
+        return new AssignExpr(indentifier, expr);
     }
 
     ASTNode *funcCall(Token nextToken)
     {
-        cout << "funccall" << endl;
+        if (debug)
+            cout << "funccall" << endl;
         string funcName = currentToken.lexeme;
         eat(TokenType::IDENTIFIER);
         currentToken = nextToken;
@@ -1952,29 +1998,41 @@ public:
         vector<ASTNode *> args;
         if (currentToken.type != TokenType::RPAREN)
         {
-            args.push_back(Expression());
+            args.push_back(ExpressionInFuncCall());
             while (currentToken.type == TokenType::COMMA)
             {
                 eat(TokenType::COMMA);
-                args.push_back(Expression());
+                args.push_back(ExpressionInFuncCall());
             }
         }
         eat(TokenType::RPAREN);
-        eat(TokenType::SEMI);
         return new FuncCallExpr(funcName, args);
     }
 
-    ASTNode *binaryExpression()
+    ASTNode *Expression()
     {
-        cout << "binaryexpression" << endl;
+        if (debug)
+            cout << "expression " << currentToken.lexeme << endl;
         const vector<TokenType> operators = {
-            TokenType::OR, TokenType::AND,
-            TokenType::BITWISE_OR, TokenType::BITWISE_XOR, TokenType::BITWISE_AND,
-            TokenType::EQUAL, TokenType::NOT_EQUAL,
-            TokenType::LESS_THAN, TokenType::LESS_EQUAL, TokenType::GREATER_THAN, TokenType::GREATER_EQUAL,
-            TokenType::LEFT_SHIFT, TokenType::RIGHT_SHIFT,
-            TokenType::ADD, TokenType::SUB,
-            TokenType::MUL, TokenType::DIV, TokenType::MOD};
+            TokenType::OR,
+            TokenType::AND,
+            TokenType::BITWISE_OR,
+            TokenType::BITWISE_XOR,
+            TokenType::BITWISE_AND,
+            TokenType::EQUAL,
+            TokenType::NOT_EQUAL,
+            TokenType::LESS_THAN,
+            TokenType::LESS_EQUAL,
+            TokenType::GREATER_THAN,
+            TokenType::GREATER_EQUAL,
+            TokenType::LEFT_SHIFT,
+            TokenType::RIGHT_SHIFT,
+            TokenType::ADD,
+            TokenType::SUB,
+            TokenType::MUL,
+            TokenType::DIV,
+            TokenType::MOD,
+        };
 
         const unordered_map<string, int> opPrecedence = {
             {"||", 1},
@@ -1994,16 +2052,49 @@ public:
             {"-", 9},
             {"*", 10},
             {"/", 10},
-            {"%", 10}};
+            {"%", 10},
+            {"(", 0} // 用于处理括号
+        };
 
         stack<BinaryExpr *> opStack;
         stack<BinaryExpr *> valStack;
         BinaryExpr *root = nullptr;
         do
         {
+            if (debug)
+                printToken(currentToken);
             if (find(constants.begin(), constants.end(), currentToken.type) != constants.end() || currentToken.type == TokenType::IDENTIFIER)
             {
                 // 处理操作数
+                Token nextToken = lexer.peektoken();
+                if (currentToken.type == TokenType::IDENTIFIER)
+                {
+                    if (nextToken.type == TokenType::LPAREN)
+                    {
+                        valStack.push(new BinaryExpr(nullptr, nullptr, funcCall(nextToken)));
+                        continue;
+                    }
+                    else if (nextToken.type == TokenType::LBRACKET)
+                    {
+                        // 处理数组变量
+                        string varName = currentToken.lexeme;
+                        eat(TokenType::IDENTIFIER);
+                        while (currentToken.type == TokenType::LBRACKET)
+                        {
+                            varName += "[";
+                            eat(TokenType::LBRACKET);
+                            while (currentToken.type != TokenType::RBRACKET)
+                            {
+                                varName += currentToken.lexeme;
+                                advance();
+                            }
+                            varName += "]";
+                            eat(TokenType::RBRACKET);
+                        }
+                        valStack.push(new BinaryExpr(nullptr, nullptr, varName));
+                        continue;
+                    }
+                }
                 valStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme));
                 advance();
             }
@@ -2058,7 +2149,190 @@ public:
                 }
                 if (opStack.empty() || opStack.top()->op != "(")
                 {
-                    throwError("mismatched parentheses");
+                    // throwError("mismatched parentheses");
+                    break;
+                }
+
+                opStack.pop(); // 弹出左括号
+                advance();
+            }
+            else if (currentToken.type == TokenType::SEMI || currentToken.type == TokenType::COMMA || currentToken.type == TokenType::RBRACKET || currentToken.type == TokenType::RBRACE)
+            {
+                // 表达式结束
+                break;
+            }
+            else
+            {
+                // throwError("unexpected token in expression: " + tokenTypeToString(currentToken.type));
+                break;
+            }
+        } while (true);
+        while (!opStack.empty())
+        {
+            // 处理剩余的运算符
+            auto opNode = opStack.top();
+            opStack.pop();
+            if (valStack.size() < 2)
+            {
+                throwError("insufficient values for operator " + opNode->op);
+            }
+            auto right = valStack.top();
+            valStack.pop();
+            auto left = valStack.top();
+            valStack.pop();
+            opNode->left = left;
+            opNode->right = right;
+            valStack.push(opNode);
+        }
+        if (valStack.size() != 1)
+        {
+            throwError("invalid expression");
+        }
+        root = valStack.top();
+        valStack.pop();
+        return root;
+    }
+
+    ASTNode *ExpressionInFuncCall()
+    {
+        if (debug)
+            cout << "expressioninfunccall " << currentToken.lexeme << endl;
+        const vector<TokenType> operators = {
+            TokenType::OR,
+            TokenType::AND,
+            TokenType::BITWISE_OR,
+            TokenType::BITWISE_XOR,
+            TokenType::BITWISE_AND,
+            TokenType::EQUAL,
+            TokenType::NOT_EQUAL,
+            TokenType::LESS_THAN,
+            TokenType::LESS_EQUAL,
+            TokenType::GREATER_THAN,
+            TokenType::GREATER_EQUAL,
+            TokenType::LEFT_SHIFT,
+            TokenType::RIGHT_SHIFT,
+            TokenType::ADD,
+            TokenType::SUB,
+            TokenType::MUL,
+            TokenType::DIV,
+            TokenType::MOD,
+        };
+
+        const unordered_map<string, int> opPrecedence = {
+            {"||", 1},
+            {"&&", 2},
+            {"|", 3},
+            {"^", 4},
+            {"&", 5},
+            {"==", 6},
+            {"!=", 6},
+            {"<", 7},
+            {"<=", 7},
+            {">", 7},
+            {">=", 7},
+            {"<<", 8},
+            {">>", 8},
+            {"+", 9},
+            {"-", 9},
+            {"*", 10},
+            {"/", 10},
+            {"%", 10},
+            {"(", 0} // 用于处理括号;
+        };
+
+        stack<BinaryExpr *> opStack;
+        stack<BinaryExpr *> valStack;
+        BinaryExpr *root = nullptr;
+        do
+        {
+            if (find(constants.begin(), constants.end(), currentToken.type) != constants.end() || currentToken.type == TokenType::IDENTIFIER)
+            {
+                // 处理操作数
+                Token nextToken = lexer.peektoken();
+                if (currentToken.type == TokenType::IDENTIFIER)
+                {
+                    if (nextToken.type == TokenType::LPAREN)
+                    {
+                        valStack.push(new BinaryExpr(nullptr, nullptr, funcCall(nextToken)));
+                        advance();
+                        continue;
+                    }
+                    else if (nextToken.type == TokenType::LBRACKET)
+                    {
+                        // 处理数组变量
+                        string varName = currentToken.lexeme;
+                        eat(TokenType::IDENTIFIER);
+                        while (currentToken.type == TokenType::LBRACKET)
+                        {
+                            varName += "[";
+                            eat(TokenType::LBRACKET);
+                            while (currentToken.type != TokenType::RBRACKET)
+                            {
+                                varName += currentToken.lexeme;
+                                advance();
+                            }
+                            varName += "]";
+                            eat(TokenType::RBRACKET);
+                        }
+                        valStack.push(new BinaryExpr(nullptr, nullptr, varName));
+                        continue;
+                    }
+                }
+                valStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme));
+                advance();
+            }
+            else if (find(operators.begin(), operators.end(), currentToken.type) != operators.end())
+            {
+                // 处理操作符
+                while (!opStack.empty() && opPrecedence.at(opStack.top()->op) >= opPrecedence.at(currentToken.lexeme))
+                {
+                    // 处理栈顶运算符
+                    auto opNode = opStack.top();
+                    opStack.pop();
+                    if (valStack.size() < 2)
+                    {
+                        throwError("insufficient values for operator " + opNode->op);
+                    }
+                    auto right = valStack.top();
+                    valStack.pop();
+                    auto left = valStack.top();
+                    valStack.pop();
+                    opNode->left = left;
+                    opNode->right = right;
+                    valStack.push(opNode);
+                }
+                // 将当前运算符入栈
+                opStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme));
+                advance();
+            }
+            else if (currentToken.type == TokenType::LPAREN)
+            {
+                // 处理左括号
+                opStack.push(new BinaryExpr(nullptr, nullptr, "("));
+                advance();
+            }
+            else if (currentToken.type == TokenType::RPAREN)
+            {
+                // 处理右括号
+                while (!opStack.empty() && opStack.top()->op != "(")
+                {
+                    auto opNode = opStack.top();
+                    opStack.pop();
+                    if (valStack.size() < 2)
+                    {
+                        throwError("insufficient values for operator " + opNode->op);
+                    }
+                    auto right = valStack.top();
+                    valStack.pop();
+                    auto left = valStack.top();
+                    valStack.pop();
+                    opNode->left = left;
+                    opNode->right = right;
+                    valStack.push(opNode);
+                }
+                if (opStack.empty() || opStack.top()->op != "(")
+                {
+                    break;
                 }
 
                 opStack.pop(); // 弹出左括号

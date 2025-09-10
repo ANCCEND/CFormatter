@@ -39,7 +39,8 @@ enum class ASTNodeType
     UnaryExpr,    // 一元表达式
     Literal,      // 常量
     Identifier,   // 标识符
-    FuncCallExpr  // 函数调用
+    FuncCallExpr, // 函数调用
+    AssignExpr    // 赋值表达式
 };
 
 enum class VarKind
@@ -276,7 +277,7 @@ public:
                 {
                     size->print(0);
                 }
-                cout << ']' << endl;
+                cout << string(indent + 4, ' ') << ']' << endl;
             }
         }
         if (init)
@@ -420,7 +421,7 @@ public:
         cout << string(indent, ' ') << "FunctionDef: " << functionName << "\n";
         if (returnType)
         {
-            cout << string(indent + 2, ' ') << "Return :\n";
+            cout << string(indent + 2, ' ') << "Return ";
             returnType->print(indent + 4);
         }
         else
@@ -502,10 +503,10 @@ public:
                         p.first->print(indent + 4);
                         cout << string(indent + 4, ' ') << "Param Name: " << p.second << "\n";
                     }
-                    else
+                    /*else
                     {
                         cout << string(indent + 4, ' ') << "Error: Null Parameter Type\n";
-                    }
+                    }*/
                 }
             }
         }
@@ -1042,6 +1043,9 @@ public:
     ASTNode *left;
     ASTNode *right;
     string op;
+    ASTNode *funcCallExpr = nullptr;
+    BinaryExpr(ASTNode *l, ASTNode *r, ASTNode *funcCall)
+        : ASTNode(ASTNodeType::BinaryExpr), left(l), right(r), funcCallExpr(funcCall) {}
     BinaryExpr(ASTNode *l, ASTNode *r, const string &o)
         : ASTNode(ASTNodeType::BinaryExpr), left(l), right(r), op(o) {}
     ~BinaryExpr()
@@ -1053,25 +1057,34 @@ public:
     }
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "BinaryExpr: " << op << "\n";
+        if (funcCallExpr)
+        {
+            cout << string(indent, ' ') << "FuncCallExpr:\n";
+            funcCallExpr->print(indent + 2);
+            return;
+        }
+        else if (!op.empty())
+        {
+            cout << string(indent, ' ') << "BinaryExpr: " << op << "\n";
+        }
         if (left)
         {
             cout << string(indent + 2, ' ') << "Left:\n";
             left->print(indent + 4);
         }
-        else
+        /*else
         {
             cout << string(indent + 2, ' ') << "Error: Null Left Operand\n";
-        }
+        }*/
         if (right)
         {
             cout << string(indent + 2, ' ') << "Right:\n";
             right->print(indent + 4);
         }
-        else
+        /*else
         {
             cout << string(indent + 2, ' ') << "Error: Null Right Operand\n";
-        }
+        }*/
     }
 };
 
@@ -1138,3 +1151,29 @@ public:
     }
 };
 
+class AssignExpr : public ASTNode
+{
+public:
+    string varName;
+    ASTNode *value;
+    AssignExpr(const string &vname, ASTNode *val)
+        : ASTNode(ASTNodeType::AssignExpr), varName(vname), value(val) {}
+    ~AssignExpr()
+    {
+        if (value)
+            delete value;
+    }
+    void print(int indent = 0) const override
+    {
+        cout << string(indent, ' ') << "AssignExpr: " << varName << "\n";
+        if (value)
+        {
+            cout << string(indent + 2, ' ') << "Value:\n";
+            value->print(indent + 4);
+        }
+        else
+        {
+            cout << string(indent + 2, ' ') << "Error: Null Value\n";
+        }
+    }
+};

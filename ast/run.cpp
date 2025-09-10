@@ -9,14 +9,24 @@
 using namespace std;
 
 int main(int argc, char *argv[]){
+    bool debug = false;
     if(argc < 2){
         cerr << "Usage: " << argv[0] << " <source_file.c>" << endl;
         return 1;
     }
-    else if(argc > 2){
+    else if(argc > 3){
         cerr << "Error: Too many arguments." << endl;
-        cerr << "Usage: " << argv[0] << " <source_file.c>" << endl;
+        cerr << "Usage: " << argv[0] << " <source_file.c>" <<"debug" << endl;
         return 1;
+    }
+    else if(argc == 3){
+        string debugFlag = argv[2];
+        if(debugFlag != "debug"){
+            cerr << "Error: Unknown argument '" << debugFlag << "'." << endl;
+            cerr << "Usage: " << argv[0] << " <source_file.c>" <<"debug" << endl;
+            return 1;
+        }
+        debug = true;
     }
     const char* filename = argv[1];
     ifstream file(filename);
@@ -25,7 +35,7 @@ int main(int argc, char *argv[]){
         return 1;
     }
     try{
-        Parser parser(file);
+        Parser parser(file,debug);
         ASTNode* root = parser.program();
         root->print();
         delete root;
