@@ -231,7 +231,7 @@ public:
 class VarDeclNode : public ASTNode
 {
 public:
-    TypeSpec *typeName;
+    TypeSpec *typeName = nullptr;
     string name;                  // 变量名
     vector<ASTNode *> arraySizes; // 数组维度大小表达式列表
     ASTNode *init = nullptr;      // 初始化表达式，若无初始化则为 nullptr
@@ -390,7 +390,7 @@ public:
 class FunctionDef : public ASTNode
 {
 public:
-    TypeSpec *returnType;                        // 返回类型
+    TypeSpec *returnType = nullptr;              // 返回类型
     string functionName;                         // 函数名
     vector<pair<TypeSpec *, string>> parameters; // 参数列表，包含类型和名称
     ASTNode *body = nullptr;                     // 函数体
@@ -456,7 +456,7 @@ public:
 class FuncionDeclNode : public ASTNode
 {
 public:
-    TypeSpec *returnType;                                // 返回类型
+    TypeSpec *returnType = nullptr;                      // 返回类型
     vector<string> functionNames;                        // 函数名
     vector<vector<pair<TypeSpec *, string>>> parameters; // 参数列表，包含类型和名称
     FuncionDeclNode(TypeSpec *retType, const vector<string> &funcName,
@@ -516,8 +516,8 @@ public:
 class TypeDefNode : public ASTNode
 {
 public:
-    TypeSpec *typeName;   // 类型名称
-    vector<string> alias; // 别名
+    TypeSpec *typeName = nullptr; // 类型名称
+    vector<string> alias;         // 别名
     TypeDefNode(TypeSpec *type, const vector<string> &al)
         : ASTNode(ASTNodeType::TypeDef), typeName(type), alias(al) {}
     ~TypeDefNode()
@@ -605,9 +605,9 @@ public:
 class IfStmt : public ASTNode
 {
 public:
-    ASTNode *condition;
-    ASTNode *thenBranch;
-    ASTNode *elseBranch;
+    ASTNode *condition = nullptr;
+    ASTNode *thenBranch = nullptr;
+    ASTNode *elseBranch = nullptr;
     IfStmt(ASTNode *cond, ASTNode *thenB, ASTNode *elseB) : ASTNode(ASTNodeType::IfStmt), thenBranch(thenB), elseBranch(elseB) {}
     ~IfStmt()
     {
@@ -642,7 +642,7 @@ public:
         if (elseBranch)
         {
             cout << string(indent + 2, ' ') << "Else Branch:\n";
-            elseBranch->print(indent + 4);
+            elseBranch->print(indent + 2);
         }
     }
 };
@@ -650,7 +650,7 @@ public:
 class ThenStmt : public ASTNode
 {
 public:
-    ASTNode *ThenBranch;
+    ASTNode *ThenBranch = nullptr;
     ThenStmt(ASTNode *thenB) : ASTNode(ASTNodeType::THenStmt), ThenBranch(thenB) {}
     ~ThenStmt()
     {
@@ -674,7 +674,7 @@ public:
 class ElseStmt : public ASTNode
 {
 public:
-    ASTNode *ElseBranch;
+    ASTNode *ElseBranch = nullptr;
     ElseStmt(ASTNode *elseB) : ASTNode(ASTNodeType::ElseStmt), ElseBranch(elseB) {}
     ~ElseStmt()
     {
@@ -698,8 +698,8 @@ public:
 class WhileStmt : public ASTNode
 {
 public:
-    ASTNode *condition;
-    ASTNode *body;
+    ASTNode *condition = nullptr;
+    ASTNode *body = nullptr;
     WhileStmt(ASTNode *cond, ASTNode *bdy) : ASTNode(ASTNodeType::WhileStmt), condition(cond), body(bdy) {}
     ~WhileStmt()
     {
@@ -735,8 +735,8 @@ public:
 class DoWhileStmt : public ASTNode
 {
 public:
-    ASTNode *body;
-    ASTNode *condition;
+    ASTNode *body = nullptr;
+    ASTNode *condition = nullptr;
     DoWhileStmt(ASTNode *bdy, ASTNode *cond) : ASTNode(ASTNodeType::DoWhileStmt), body(bdy), condition(cond) {}
     ~DoWhileStmt()
     {
@@ -772,7 +772,7 @@ public:
 class ReturnStmt : public ASTNode
 {
 public:
-    ASTNode *expression;
+    ASTNode *expression = nullptr;
     ReturnStmt(ASTNode *expr) : ASTNode(ASTNodeType::ReturnStmt), expression(expr) {}
     ~ReturnStmt()
     {
@@ -797,9 +797,9 @@ public:
 class SwitchStmt : public ASTNode
 {
 public:
-    ASTNode *expression;
+    ASTNode *expression = nullptr;
     vector<ASTNode *> cases;
-    ASTNode *defaultCase;
+    ASTNode *defaultCase = nullptr;
     SwitchStmt(ASTNode *expr, const vector<ASTNode *> &caseList, ASTNode *defCase)
         : ASTNode(ASTNodeType::SwitchStmt), expression(expr), cases(caseList), defaultCase(defCase) {}
     ~SwitchStmt()
@@ -849,7 +849,7 @@ public:
 class SwitchCase : public ASTNode
 {
 public:
-    ASTNode *caseValue;
+    ASTNode *caseValue=nullptr;
     vector<ASTNode *> statements;
     SwitchCase(ASTNode *value, const vector<ASTNode *> &stmts)
         : ASTNode(ASTNodeType::SwitchCase), caseValue(value), statements(stmts) {}
@@ -925,10 +925,10 @@ public:
 class ForStmt : public ASTNode
 {
 public:
-    ASTNode *init;
-    ASTNode *condition;
-    ASTNode *increment;
-    ASTNode *body;
+    ASTNode *init=nullptr;
+    ASTNode *condition=nullptr;
+    ASTNode *increment=nullptr;
+    ASTNode *body=nullptr;
     ForStmt(ASTNode *ini, ASTNode *cond, ASTNode *inc, ASTNode *bdy) : ASTNode(ASTNodeType::ForStmt), init(ini), condition(cond), increment(inc), body(bdy) {}
     ~ForStmt()
     {
@@ -1006,7 +1006,7 @@ public:
 class Statement : public ASTNode
 {
 public:
-    ASTNode *stmt;
+    ASTNode *stmt=nullptr;
     Statement(ASTNode *s) : ASTNode(ASTNodeType::Statement), stmt(s) {}
     ~Statement()
     {
@@ -1040,8 +1040,8 @@ public:
 class BinaryExpr : public ASTNode
 {
 public:
-    ASTNode *left;
-    ASTNode *right;
+    ASTNode *left=nullptr;
+    ASTNode *right=nullptr;
     string op;
     ASTNode *funcCallExpr = nullptr;
     BinaryExpr(ASTNode *l, ASTNode *r, ASTNode *funcCall)
@@ -1155,7 +1155,7 @@ class AssignExpr : public ASTNode
 {
 public:
     string varName;
-    ASTNode *value;
+    ASTNode *value=nullptr;
     AssignExpr(const string &vname, ASTNode *val)
         : ASTNode(ASTNodeType::AssignExpr), varName(vname), value(val) {}
     ~AssignExpr()

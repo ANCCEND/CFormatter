@@ -1424,6 +1424,7 @@ public:
                 if (currentToken.type == TokenType::SEMI)
                 {
                     varDecls.push_back(new VarDeclNode(typeSpec, currentName, {}, nullptr));
+                    eat(TokenType::SEMI);
                     break;
                 }
                 else if (currentToken.type == TokenType::LBRACKET)
@@ -1436,6 +1437,7 @@ public:
                         if (currentToken.type != TokenType::RBRACKET)
                         {
                             arraySizes.push_back(Expression());
+                            // if(debug) printToken(currentToken);
                         }
                         else
                         {
@@ -1501,7 +1503,6 @@ public:
                 throwError("expected IDENTIFIER in variable declaration");
             }
         }
-        eat(TokenType::SEMI);
         return new LocalVarDecl(varDecls);
     }
 
@@ -1666,14 +1667,14 @@ public:
             }
             else
             {
-                statements.push_back(statement());
+                statements.push_back(statement(false));
             }
         }
         eat(TokenType::RBRACE);
         return new CompoundStmt(localDecls, statements);
     }
 
-    ASTNode *statement()
+    ASTNode *statement(bool isInParen)
     {
         if (debug)
             cout << "statement" << endl;
@@ -1724,6 +1725,8 @@ public:
         }
         else if (currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST || currentToken.type == TokenType::STATIC || currentToken.type == TokenType::EXTERN || currentToken.type == TokenType::REGISTER)
         {
+            if (debug)
+                printToken(currentToken);
             return localVarDecl();
         }
         else if (currentToken.type == TokenType::IDENTIFIER)
@@ -1764,7 +1767,11 @@ public:
             else
             {
                 auto expr = Expression();
-                eat(TokenType::SEMI);
+                if (!isInParen)
+                {
+                    cout << 1 << endl;
+                    eat(TokenType::SEMI);
+                }
                 return expr;
             }
         }
@@ -1772,7 +1779,8 @@ public:
         else if (find(constants.begin(), constants.end(), currentToken.type) != constants.end())
         {
             auto expr = Expression();
-            eat(TokenType::SEMI);
+            if (!isInParen)
+                eat(TokenType::SEMI);
             return expr;
         }
         return nullptr;
@@ -1793,7 +1801,7 @@ public:
         }
         else
         {
-            thenBranch = statement();
+            thenBranch = statement(true);
         }
         ASTNode *elseBranch = nullptr;
         if (currentToken.type == TokenType::ELSE)
@@ -1809,7 +1817,7 @@ public:
             }
             else
             {
-                elseBranch = statement();
+                elseBranch = statement(false);
             }
         }
         return new IfStmt(condition, thenBranch, elseBranch);
@@ -1831,7 +1839,7 @@ public:
         }
         else
         {
-            body = statement();
+            body = statement(false);
         }
         return new WhileStmt(condition, body);
     }
@@ -1848,7 +1856,7 @@ public:
         }
         else
         {
-            body = statement();
+            body = statement(false);
         }
         eat(TokenType::WHILE);
         if (currentToken.type != TokenType::LPAREN)
@@ -1870,7 +1878,8 @@ public:
         ASTNode *body = nullptr;
         if (currentToken.type != TokenType::SEMI)
         {
-            init = statement();
+            init = statement(false);
+            eat(TokenType::SEMI);
         }
         if (currentToken.type != TokenType::SEMI)
         {
@@ -1879,7 +1888,8 @@ public:
         }
         if (currentToken.type != TokenType::RPAREN)
         {
-            increment = statement();
+            increment = statement(true);
+            eat(TokenType::RPAREN);
         }
         if (currentToken.type == TokenType::LBRACE)
         {
@@ -1887,7 +1897,7 @@ public:
         }
         else
         {
-            body = statement();
+            body = statement(false);
         }
         return new ForStmt(init, condition, increment, body);
     }
@@ -1927,7 +1937,7 @@ public:
                 vector<ASTNode *> stmts;
                 while (currentToken.type != TokenType::CASE && currentToken.type != TokenType::DEFAULT && currentToken.type != TokenType::RBRACE)
                 {
-                    auto stmt = statement();
+                    auto stmt = statement(false);
                     if (stmt)
                         stmts.push_back(stmt);
                 }
@@ -1940,7 +1950,7 @@ public:
                 vector<ASTNode *> stmts;
                 while (currentToken.type != TokenType::RBRACE)
                 {
-                    auto stmt = statement();
+                    auto stmt = statement(false);
                     if (stmt)
                         stmts.push_back(stmt);
                 }
@@ -1983,7 +1993,6 @@ public:
         eat(TokenType::IDENTIFIER);
         eat(TokenType::ASSIGN);
         auto expr = Expression();
-        advance();
         return new AssignExpr(indentifier, expr);
     }
 
@@ -2190,6 +2199,8 @@ public:
         }
         root = valStack.top();
         valStack.pop();
+        // if(debug) printToken(currentToken);
+
         return root;
     }
 

@@ -5,20 +5,21 @@
    这里是多行注释
 */
 
-#include <stdio.h>   // 文件包含
-#define PI 3.14      // 宏定义
+#include <stdio.h> // 文件包含
+#define PI 3.14    // 宏定义
 
 // 外部变量说明
 int globalVar = 10;
 const int MAX = 100;
-int arr[5];   // 数组变量
+int arr[5]; // 数组变量
 
 // 函数声明
 int add(int a, int b);
 void printMessage(void);
 
 // 主函数
-int main(void) {
+int main(void)
+{
     // 局部变量
     int i = 0;
     int sum = 0;
@@ -28,30 +29,40 @@ int main(void) {
     sum = add(nums[0], nums[1]) + nums[2] * 2;
 
     // if 语句（单分支）
-    if (sum > MAX) {
+    if (sum > MAX)
+    {
         sum = MAX;
     }
 
     // if-else 语句
-    if (sum == 0) {
+    if (sum == 0)
+    {
         printMessage();
-    } else {
+    }
+    else if (sum == 1)
+    {
         sum = sum + 1;
     }
+    else
+        return 1;
 
     // while 语句
-    while (i < 5) {
+    while (i < 5)
+    {
         sum = sum + i;
         i = i + 1;
     }
 
     // for 语句
-    for (i = 0; i < 5; i = i + 1) {
-        if (i == 3) {
-            continue;  // 跳过当前循环
+    for (int i = 0; i < 5; i = i + 1)
+    {
+        if (i == 3)
+        {
+            continue; // 跳过当前循环
         }
-        if (i == 4) {
-            break;     // 提前退出循环
+        if (i == 4)
+        {
+            break; // 提前退出循环
         }
         sum = sum + i;
     }
@@ -61,10 +72,12 @@ int main(void) {
 }
 
 // 函数定义
-int add(int a, int b) {
+int add(int a, int b)
+{
     return a + b;
 }
 
-void printMessage(void) {
+void printMessage(void)
+{
     printf("Hello, C subset test!\n");
 }
