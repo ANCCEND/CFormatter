@@ -16,7 +16,7 @@ int main(int argc, char *argv[])
         cerr << "Usage: " << argv[0] << " <source_file.c>" << endl;
         return 1;
     }
-    else if (argc > 3)
+    else if (argc > 4)
     {
         cerr << "Error: Too many arguments." << endl;
         cerr << "Usage: " << argv[0] << " <source_file.c>" << "debug" << endl;
@@ -24,29 +24,66 @@ int main(int argc, char *argv[])
     }
     else if (argc == 3)
     {
-        string debugFlag = argv[2];
-        if (debugFlag != "debug")
+        string Flag = argv[2];
+        if (Flag == "-debug")
         {
-            cerr << "Error: Unknown argument '" << debugFlag << "'." << endl;
+           debug= true;
+        }
+        else if(Flag == "-o")
+        {
+            cerr << "Error: Output file not specified." << endl;
+            cerr << "Usage: " << argv[0] << " <source_file.c> -o <output_file.c>" << endl;
+            return 1;
+        }
+        else
+        {
+            cerr << "Error: Unknown argument '" << Flag << "'." << endl;
             cerr << "Usage: " << argv[0] << " <source_file.c>" << "debug" << endl;
             return 1;
         }
-        debug = true;
     }
-    const char *filename = argv[1];
-    ifstream file(filename);
-    if (!file.is_open())
+    else if (argc == 4)
     {
-        cerr << "Error: Could not open file " << filename << endl;
+        string Flag = argv[2];
+        if (Flag== "-debug")
+        {
+            debug = true;
+        }
+        else if (Flag == "-o")
+        {
+            debug = false;
+        }
+        else
+        {
+            cerr << "Error: Unknown argument '" << Flag << "'." << endl;
+            cerr << "Usage: " << argv[0] << " <source_file.c> -o <output_file.c>" << endl;
+            return 1;
+        }
+    }
+    const char *infilename = argv[1], *outfilename = argv[3];
+    ifstream infile(infilename);
+    ofstream outfile(outfilename);
+    if (!infile.is_open())
+    {
+        cerr << "Error: Could not open file " << infilename << endl;
         return 1;
     }
+    if (!outfile.is_open())
+    {
+        cerr << "Error: Could not open file " << outfilename << endl;
+        return 1;
+    }
+
     try
     {
-        Parser parser(file, debug);
+        Parser parser(infile, debug);
         ASTNode *root = parser.program();
         if (root)
+        {
             root->print();
-        delete root;
+            root->printToFile(outfile);
+        }
+        cout << "Finished printing AST." << endl;
     }
     catch (const std::runtime_error &e)
     {

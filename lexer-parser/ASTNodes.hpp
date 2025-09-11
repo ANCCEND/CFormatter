@@ -167,6 +167,7 @@ public:
     ASTNode(ASTNodeType t) : type(t) {}
     virtual ~ASTNode() = default;
     virtual void print(int indent = 0) const = 0;
+    virtual void printToFile(ostream &out, int indent = 0) const = 0;
 };
 
 class ProgramNode : public ASTNode
@@ -200,6 +201,21 @@ public:
             }
         }
     }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, ' ');
+        for (auto def : extdeflists)
+        {
+            if (def)
+            {
+                def->printToFile(out, indent + 1);
+            }
+            else
+            {
+                out << string(indent + 1, '\t') << "Error: Null ExtDef\n";
+            }
+        }
+    }
 };
 
 class Preprocessor : public ASTNode
@@ -210,6 +226,10 @@ public:
     void print(int indent = 0) const override
     {
         cout << string(indent, ' ') << "Preprocessor: " << directive << "\n";
+    }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << directive << "\n";
     }
 };
 
@@ -227,6 +247,13 @@ public:
             cout << name << " ";
         }
         cout << "\n";
+    }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        for (const auto &name : typeName)
+        {
+            out << name << " ";
+        }
     }
 };
 
@@ -288,6 +315,36 @@ public:
             init->print(indent + 4);
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        /*out << string(indent, '\t');
+        if (typeName)
+        {
+            for(const auto &varType : typeName->typeName) {
+                out << varType << " ";
+            }
+        }
+        else
+        {
+            out << "/* Error: Null TypeSpec  ";
+        }
+        out << name;
+        for (const auto &size : arraySizes)
+        {
+            out << "[";
+            if (size)
+            {
+                size->printToFile(out, 0);
+            }
+            out << "]";
+        }
+        if (init)
+        {
+            out << " = ";
+            init->printToFile(out, 0);
+        }*/
+    }
 };
 
 class VarInitList : public ASTNode
@@ -308,7 +365,7 @@ public:
     }
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "VarInitList:\n";
+        cout << string(indent, ' ') << "VarInitList: {\n";
         for (const auto &init : inits)
         {
             if (init)
@@ -320,6 +377,28 @@ public:
                 cout << string(indent + 2, ' ') << "Error: Null Initializer\n";
             }
         }
+        cout << string(indent, ' ') << "}\n";
+    }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << "{ ";
+        for (size_t i = 0; i < inits.size(); ++i)
+        {
+            if (inits[i])
+            {
+                inits[i]->printToFile(out, 0);
+            }
+            else
+            {
+                out << "/* Error: Null Initializer */";
+            }
+            if (i < inits.size() - 1)
+            {
+                out << ", ";
+            }
+        }
+        out << " }";
     }
 };
 
@@ -354,6 +433,44 @@ public:
             }
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t');
+        for(const auto &varType : varDecls[0]->typeName->typeName) {
+            out << varType << " ";
+        }
+        for (size_t i = 0; i < varDecls.size(); ++i)
+        {
+            if (varDecls[i])
+            {
+                out << varDecls[i]->name;
+                for (const auto &size : varDecls[i]->arraySizes)
+                {
+                    out << "[";
+                    if (size)
+                    {
+                        size->printToFile(out, 0);
+                    }
+                    out << "]";
+                }
+                if (varDecls[i]->init)
+                {
+                    out << " = ";
+                    varDecls[i]->init->printToFile(out, 0);
+                }
+            }
+            else
+            {
+                out << "/* Error: Null VarDecl */";
+            }
+            if (i < varDecls.size() - 1)
+            {
+                out << ", ";
+            }
+        }
+        out << ";\n";
+    }
 };
 
 class ExtVarDecl : public ASTNode
@@ -386,6 +503,44 @@ public:
                 cout << string(indent + 2, ' ') << "Error: Null VarDecl\n";
             }
         }
+    }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t');
+        for(const auto &varType : varDecls[0]->typeName->typeName) {
+            out << varType << " ";
+        }
+        for (size_t i = 0; i < varDecls.size(); ++i)
+        {
+            if (varDecls[i])
+            {
+                out << varDecls[i]->name;
+                for (const auto &size : varDecls[i]->arraySizes)
+                {
+                    out << "[";
+                    if (size)
+                    {
+                        size->printToFile(out, 0);
+                    }
+                    out << "]";
+                }
+                if (varDecls[i]->init)
+                {
+                    out << " = ";
+                    varDecls[i]->init->printToFile(out, 0);
+                }
+            }
+            else
+            {
+                out << "/* Error: Null VarDecl */";
+            }
+            if (i < varDecls.size() - 1)
+            {
+                out << ", ";
+            }
+        }
+        out << ";\n";
     }
 };
 
@@ -423,7 +578,7 @@ public:
         cout << string(indent, ' ') << "FunctionDef: " << functionName << "\n";
         if (returnType)
         {
-            cout << string(indent + 2, ' ') << "Return ";
+            cout << string(indent + 2, ' ') << "Return Type:\n";
             returnType->print(indent + 4);
         }
         else
@@ -451,6 +606,42 @@ public:
         else
         {
             cout << string(indent + 2, ' ') << "Error: Null Body\n";
+        }
+    }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t');
+        for(const auto &varType : returnType->typeName) {
+            out << varType << " ";
+        }
+        out << functionName << "(";
+        for (size_t i = 0; i < parameters.size(); ++i)
+        {
+            if (parameters[i].first)
+            {
+                for(const auto &varType : parameters[i].first->typeName) {
+                    out << varType << " ";
+                }
+                out << parameters[i].second;
+            }
+            else
+            {
+                out << "/* Error: Null Parameter Type */";
+            }
+            if (i < parameters.size() - 1)
+            {
+                out << ", ";
+            }
+        }
+        out << ") ";
+        if (body)
+        {
+            body->printToFile(out, indent);
+        }
+        else
+        {
+            out << "{ /* Error: Null Body */ }\n";
         }
     }
 };
@@ -483,6 +674,7 @@ public:
     }
     void print(int indent = 0) const override
     {
+        int i = 0;
         for (auto &funcName : functionNames)
         {
             cout << string(indent, ' ') << "FunctionDecl: " << funcName << "\n";
@@ -496,21 +688,51 @@ public:
                 cout << string(indent + 2, ' ') << "Error: Null Return Type\n";
             }
             cout << string(indent + 2, ' ') << "Parameters:\n";
-            for (const auto &param : parameters)
+            auto &param = parameters[i++];
+
+            for (const auto &p : param)
             {
-                for (const auto &p : param)
+                if (p.first)
                 {
-                    if (p.first)
-                    {
-                        p.first->print(indent + 4);
-                        cout << string(indent + 4, ' ') << "Param Name: " << p.second << "\n";
+                    p.first->print(indent + 4);
+                    cout << string(indent + 4, ' ') << "Param Name: " << p.second << "\n";
+                }
+                /*else
+                {
+                    cout << string(indent + 4, ' ') << "Error: Null Parameter Type\n";
+                }*/
+            }
+        }
+    }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        for (size_t i = 0; i < functionNames.size(); ++i)
+        {
+            out << string(indent, '\t');
+            for(const auto &varType : returnType->typeName) {
+                out << varType << " ";
+            }
+            out << functionNames[i] << "(";
+            for (size_t j = 0; j < parameters[i].size(); ++j)
+            {
+                if (parameters[i][j].first)
+                {
+                    for(const auto &varType : parameters[i][j].first->typeName) {
+                        out << varType << " ";
                     }
-                    /*else
-                    {
-                        cout << string(indent + 4, ' ') << "Error: Null Parameter Type\n";
-                    }*/
+                    out << parameters[i][j].second;
+                }
+                else
+                {
+                    out << "/* Error: Null Parameter Type */";
+                }
+                if (j < parameters[i].size() - 1)
+                {
+                    out << ", ";
                 }
             }
+            out << ");\n";
         }
     }
 };
@@ -531,7 +753,7 @@ public:
     }
     void print(int indent = 0) const override
     {
-        cout << string(indent, ' ') << "TypeDef: ";
+        cout << string(indent, ' ') << "TypeDef: \n";
         if (typeName)
         {
             typeName->print(indent + 2);
@@ -552,22 +774,33 @@ public:
             }
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "typedef ";
+        for(const auto &varType : typeName->typeName) {
+            out << varType << " ";
+        }
+        for (size_t i = 0; i < alias.size(); ++i)
+        {
+            out << alias[i];
+            if (i < alias.size() - 1)
+            {
+                out << ", ";
+            }
+        }
+        out << ";\n";
+    }
 };
 
 class CompoundStmt : public ASTNode
 {
 public:
-    vector<ASTNode *> vardecls;
     vector<ASTNode *> statements; // 语句列表
-    CompoundStmt(const vector<ASTNode *> &vars, const vector<ASTNode *> &stmts)
-        : ASTNode(ASTNodeType::CompoundStmt), vardecls(vars), statements(stmts) {}
+    CompoundStmt(/*const vector<ASTNode *> &vars, */const vector<ASTNode *> &stmts)
+        : ASTNode(ASTNodeType::CompoundStmt), /*vardecls(vars),*/ statements(stmts) {}
     ~CompoundStmt()
     {
-        for (auto decl : vardecls)
-        {
-            if (decl)
-                delete decl;
-        }
         for (auto stmt : statements)
         {
             if (stmt)
@@ -577,18 +810,6 @@ public:
     void print(int indent = 0) const override
     {
         cout << string(indent, ' ') << "CompoundStmt:\n";
-        cout << string(indent + 2, ' ') << "VarDecls:\n";
-        for (const auto &decl : vardecls)
-        {
-            if (decl)
-            {
-                decl->print(indent + 4);
-            }
-            else
-            {
-                cout << string(indent + 4, ' ') << "Error: Null VarDecl\n";
-            }
-        }
         cout << string(indent + 2, ' ') << "Statements:\n";
         for (const auto &stmt : statements)
         {
@@ -602,15 +823,32 @@ public:
             }
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "{\n";
+        for (const auto &stmt : statements)
+        {
+            if (stmt)
+            {
+                stmt->printToFile(out, indent + 1);
+            }
+            else
+            {
+                out << string(indent + 1, '\t') << "/* Error: Null Statement */\n";
+            }
+        }
+        out << string(indent, '\t') << "}\n";
+    }
 };
 
 class IfStmt : public ASTNode
 {
 public:
-    ASTNode *condition = nullptr;
+    ASTNode *condition =nullptr;
     ASTNode *thenBranch = nullptr;
     ASTNode *elseBranch = nullptr;
-    IfStmt(ASTNode *cond, ASTNode *thenB, ASTNode *elseB) : ASTNode(ASTNodeType::IfStmt), thenBranch(thenB), elseBranch(elseB) {}
+    IfStmt(ASTNode *cond, ASTNode *thenB, ASTNode *elseB) : ASTNode(ASTNodeType::IfStmt),condition(cond), thenBranch(thenB), elseBranch(elseB) {}
     ~IfStmt()
     {
         if (condition)
@@ -630,6 +868,7 @@ public:
         }
         else
         {
+            throw runtime_error("expected expression in if condition");
             cout << string(indent + 2, ' ') << "Error: Null Condition\n";
         }
         if (thenBranch)
@@ -646,6 +885,38 @@ public:
             cout << string(indent + 2, ' ') << "Else Branch:\n";
             elseBranch->print(indent + 2);
         }
+    }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "if (";
+        if (condition)
+        {
+            condition->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Condition */";
+        }
+        out << ") ";
+        if (thenBranch)
+        {
+            thenBranch->printToFile(out, indent);
+        }
+        else
+        {
+            out << "{ /* Error: Null Then Branch */ }";
+        }
+        if (elseBranch && elseBranch->type == ASTNodeType::IfStmt)
+        {
+            out << "else ";
+            elseBranch->printToFile(out, indent);
+        }
+        else if (elseBranch)
+        {
+            elseBranch->printToFile(out, indent);
+        }
+        out << "\n";
     }
 };
 
@@ -671,6 +942,18 @@ public:
             cout << string(indent + 2, ' ') << "Error: Null Then Branch\n";
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        if (ThenBranch)
+        {
+            ThenBranch->printToFile(out, indent);
+        }
+        else
+        {
+            out << string(indent, '\t') << "{ /* Error: Null Then Branch */ }";
+        }
+    }
 };
 
 class ElseStmt : public ASTNode
@@ -693,6 +976,19 @@ public:
         else
         {
             cout << string(indent + 2, ' ') << "Error: Null Else Branch\n";
+        }
+    }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        if (ElseBranch)
+        {
+            out << "else ";
+            ElseBranch->printToFile(out, indent);
+        }
+        else
+        {
+            out << " else { /* Error: Null Else Branch */ }";
         }
     }
 };
@@ -732,6 +1028,29 @@ public:
             cout << string(indent + 2, ' ') << "Error: Null Body\n";
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "while (";
+        if (condition)
+        {
+            condition->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Condition */";
+        }
+        out << ") ";
+        if (body)
+        {
+            body->printToFile(out, indent);
+        }
+        else
+        {
+            out << "{ /* Error: Null Body */ }";
+        }
+        out << "\n";
+    }
 };
 
 class DoWhileStmt : public ASTNode
@@ -769,6 +1088,29 @@ public:
             cout << string(indent + 2, ' ') << "Error: Null Condition\n";
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "do ";
+        if (body)
+        {
+            body->printToFile(out, indent);
+        }
+        else
+        {
+            out << "{ /* Error: Null Body */ }";
+        }
+        out << " while (";
+        if (condition)
+        {
+            condition->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Condition */";
+        }
+        out << ");\n";
+    }
 };
 
 class ReturnStmt : public ASTNode
@@ -791,8 +1133,19 @@ public:
         }
         else
         {
-            cout << string(indent + 2, ' ') << "Error: Null Expression\n";
+            cout << string(indent + 2, ' ') << "Null Return Expression\n";
         }
+    }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "return";
+        if (expression)
+        {
+            out << " ";
+            expression->printToFile(out, 0);
+        }
+        out << ";\n";
     }
 };
 
@@ -842,16 +1195,46 @@ public:
         }
         if (defaultCase)
         {
-            cout << string(indent + 2, ' ') << "Default Case:\n";
+            //cout << string(indent + 2, ' ') << "Default Case:\n";
             defaultCase->print(indent + 4);
         }
+    }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "switch (";
+        if (expression)
+        {
+            expression->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Expression */";
+        }
+        out << ") {\n";
+        for (const auto &caseStmt : cases)
+        {
+            if (caseStmt)
+            {
+                caseStmt->printToFile(out, indent + 1);
+            }
+            else
+            {
+                out << string(indent + 1, '\t') << "/* Error: Null Case Statement */\n";
+            }
+        }
+        if (defaultCase)
+        {
+            defaultCase->printToFile(out, indent + 1);
+        }
+        out << string(indent, '\t') << "}\n";
     }
 };
 
 class SwitchCase : public ASTNode
 {
 public:
-    ASTNode *caseValue=nullptr;
+    ASTNode *caseValue = nullptr;
     vector<ASTNode *> statements;
     SwitchCase(ASTNode *value, const vector<ASTNode *> &stmts)
         : ASTNode(ASTNodeType::SwitchCase), caseValue(value), statements(stmts) {}
@@ -890,6 +1273,31 @@ public:
             }
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "case ";
+        if (caseValue)
+        {
+            caseValue->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Case Value */";
+        }
+        out << ":\n";
+        for (const auto &stmt : statements)
+        {
+            if (stmt)
+            {
+                stmt->printToFile(out, indent + 1);
+            }
+            else
+            {
+                out << string(indent + 1, '\t') << "/* Error: Null Statement */\n";
+            }
+        }
+    }
 };
 
 class DefaultCase : public ASTNode
@@ -922,15 +1330,31 @@ public:
             }
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "default:\n";
+        for (const auto &stmt : statements)
+        {
+            if (stmt)
+            {
+                stmt->printToFile(out, indent + 1);
+            }
+            else
+            {
+                out << string(indent + 1, '\t') << "/* Error: Null Statement */\n";
+            }
+        }
+    }
 };
 
 class ForStmt : public ASTNode
 {
 public:
-    ASTNode *init=nullptr;
-    ASTNode *condition=nullptr;
-    ASTNode *increment=nullptr;
-    ASTNode *body=nullptr;
+    ASTNode *init = nullptr;
+    ASTNode *condition = nullptr;
+    ASTNode *increment = nullptr;
+    ASTNode *body = nullptr;
     ForStmt(ASTNode *ini, ASTNode *cond, ASTNode *inc, ASTNode *bdy) : ASTNode(ASTNodeType::ForStmt), init(ini), condition(cond), increment(inc), body(bdy) {}
     ~ForStmt()
     {
@@ -983,6 +1407,47 @@ public:
             cout << string(indent + 2, ' ') << "Error: Null Body\n";
         }
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "for (";
+        if (init)
+        {
+            init->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Initialization */";
+        }
+        out << "; ";
+        if (condition)
+        {
+            condition->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Condition */";
+        }
+        out << "; ";
+        if (increment)
+        {
+            increment->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Increment */";
+        }
+        out << ") ";
+        if (body)
+        {
+            body->printToFile(out, indent);
+        }
+        else
+        {
+            out << "{ /* Error: Null Body */ }";
+        }
+        out << "\n";
+    }
 };
 
 class BreakStmt : public ASTNode
@@ -992,6 +1457,11 @@ public:
     void print(int indent = 0) const override
     {
         cout << string(indent, ' ') << "BreakStmt\n";
+    }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "break;\n";
     }
 };
 
@@ -1003,12 +1473,16 @@ public:
     {
         cout << string(indent, ' ') << "ContinueStmt\n";
     }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << "continue;\n";
+    }
 };
 
 class Statement : public ASTNode
 {
 public:
-    ASTNode *stmt=nullptr;
+    ASTNode *stmt = nullptr;
     Statement(ASTNode *s) : ASTNode(ASTNodeType::Statement), stmt(s) {}
     ~Statement()
     {
@@ -1027,6 +1501,17 @@ public:
             cout << string(indent + 2, ' ') << "Error: Null Statement\n";
         }
     }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        if (stmt)
+        {
+            stmt->printToFile(out, indent);
+        }
+        else
+        {
+            out << string(indent, '\t') << "/* Error: Null Statement */\n";
+        }
+    }
 };
 
 class EmptyStmt : public ASTNode
@@ -1037,19 +1522,25 @@ public:
     {
         cout << string(indent, ' ') << "EmptyStmt\n";
     }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << ";\n";
+    }
 };
 
 class BinaryExpr : public ASTNode
 {
 public:
-    ASTNode *left=nullptr;
-    ASTNode *right=nullptr;
+    ASTNode *left = nullptr;
+    ASTNode *right = nullptr;
     string op;
+    bool isString=false;
+    bool isChar=false;
     ASTNode *funcCallExpr = nullptr;
     BinaryExpr(ASTNode *l, ASTNode *r, ASTNode *funcCall)
         : ASTNode(ASTNodeType::BinaryExpr), left(l), right(r), funcCallExpr(funcCall) {}
-    BinaryExpr(ASTNode *l, ASTNode *r, const string &o)
-        : ASTNode(ASTNodeType::BinaryExpr), left(l), right(r), op(o) {}
+    BinaryExpr(ASTNode *l, ASTNode *r, const string &o ,bool isStr=false,bool isCh=false)
+        : ASTNode(ASTNodeType::BinaryExpr), left(l), right(r), op(o), isString(isStr),isChar(isCh) {}
     ~BinaryExpr()
     {
         if (left)
@@ -1088,6 +1579,35 @@ public:
             cout << string(indent + 2, ' ') << "Error: Null Right Operand\n";
         }*/
     }
+
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        if (funcCallExpr)
+        {
+            funcCallExpr->printToFile(out, indent);
+            return;
+        }
+        if (left)
+        {
+            left->printToFile(out, 0);
+        }
+        if (!op.empty())
+        {
+            if(isString){
+                out << " \"" << op << "\"";
+            }
+            else if(isChar){
+                out << " '" << op << "'";
+            }
+            else{
+                out << " " << op;
+            }
+        }
+        if (right)
+        {
+            right->printToFile(out, 0);
+        }
+    }
 };
 
 class Literal : public ASTNode
@@ -1105,6 +1625,10 @@ public:
             cout << string(indent, ' ') << "Literal: " << value << "\n";
         }
     }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << value;
+    }
 };
 
 class Identifier : public ASTNode
@@ -1117,6 +1641,10 @@ public:
     void print(int indent = 0) const override
     {
         cout << string(indent, ' ') << "Identifier: " << name << "\n";
+    }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << name;
     }
 };
 
@@ -1151,23 +1679,46 @@ public:
             }
         }
     }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << functionName << "(";
+        for (size_t i = 0; i < arguments.size(); ++i)
+        {
+            if (arguments[i])
+            {
+                arguments[i]->printToFile(out, 0);
+            }
+            else
+            {
+                out << "/* Error: Null Argument */";
+            }
+            if (i < arguments.size() - 1)
+            {
+                out << ", ";
+            }
+        }
+        out << ")";
+    }
 };
 
 class AssignExpr : public ASTNode
 {
 public:
     string varName;
-    ASTNode *value=nullptr;
-    AssignExpr(const string &vname, ASTNode *val)
-        : ASTNode(ASTNodeType::AssignExpr), varName(vname), value(val) {}
+    string operators;
+    ASTNode *value = nullptr;
+    AssignExpr(const string &vname,const string &op, ASTNode *val)
+        : ASTNode(ASTNodeType::AssignExpr),varName(vname),operators(op),  value(val) {}
     ~AssignExpr()
     {
         if (value)
             delete value;
     }
+
     void print(int indent = 0) const override
     {
         cout << string(indent, ' ') << "AssignExpr: " << varName << "\n";
+        cout << string(indent + 2, ' ') << "Operator: " << operators << "\n";
         if (value)
         {
             cout << string(indent + 2, ' ') << "Value:\n";
@@ -1177,5 +1728,18 @@ public:
         {
             cout << string(indent + 2, ' ') << "Error: Null Value\n";
         }
+    }
+    void printToFile(ostream &out, int indent = 0) const override
+    {
+        out << string(indent, '\t') << varName << " " << operators << " ";
+        if (value)
+        {
+            value->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Value */";
+        }
+        out << ";\n";
     }
 };

@@ -7,4 +7,4 @@
 sdf \
 sdf
 
-#typedefine
+typedef int man;
