@@ -480,7 +480,7 @@ public:
                     lexeme += ch;
                     return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
                 }
-                if (ch == '\\')
+                /*if (ch == '\\')
                 {
                     next();
                     if (ch == EOF)
@@ -493,7 +493,7 @@ public:
                         ch = '\n';
                         break;
                     case 't':
-                        ch = '\t';
+                        ch = '\\t';
                         break;
                     case '\\':
                         ch = '\\';
@@ -502,7 +502,7 @@ public:
                         ch = '"';
                         break;
                     }
-                }
+                }*/
                 lexeme += ch;
                 next();
             }
@@ -1865,13 +1865,13 @@ public:
         {
             throwError("invalid token: " + currentToken.lexeme);
         }
-        if (currentToken.type == TokenType::ERROR)
+        if (currentToken.type == TokenType::END_OF_FILE)
         {
-            throwError("invalid token");
+            throwError("unexpected end of file in statement");
         }
         if (debug)
         {
-            cout << "statement" << endl;
+            cout << "statement ";
             printToken(currentToken);
         }
         if (currentToken.type == TokenType::IF)
@@ -1953,7 +1953,7 @@ public:
                     varName += "]";
                     eat(TokenType::RBRACKET);
                 }
-                if (nextToken.type == TokenType::ASSIGN || nextToken.type == TokenType::ADD_ASSIGN || nextToken.type == TokenType::SUB_ASSIGN || nextToken.type == TokenType::MUL_ASSIGN || nextToken.type == TokenType::DIV_ASSIGN || nextToken.type == TokenType::MOD_ASSIGN || nextToken.type == TokenType::AND_ASSIGN || nextToken.type == TokenType::OR_ASSIGN || nextToken.type == TokenType::BITWISE_XOR_ASSIGN || nextToken.type == TokenType::LEFT_SHIFT_ASSIGN || nextToken.type == TokenType::RIGHT_SHIFT_ASSIGN || nextToken.type == TokenType::BITWISE_AND_ASSIGN || nextToken.type == TokenType::BITWISE_OR_ASSIGN)
+                if (currentToken.type == TokenType::ASSIGN || currentToken.type == TokenType::ADD_ASSIGN || currentToken.type == TokenType::SUB_ASSIGN || currentToken.type == TokenType::MUL_ASSIGN || nextToken.type == TokenType::DIV_ASSIGN || currentToken.type == TokenType::MOD_ASSIGN || currentToken.type == TokenType::AND_ASSIGN || currentToken.type == TokenType::OR_ASSIGN || currentToken.type == TokenType::BITWISE_XOR_ASSIGN || currentToken.type == TokenType::LEFT_SHIFT_ASSIGN || currentToken.type == TokenType::RIGHT_SHIFT_ASSIGN || currentToken.type == TokenType::BITWISE_AND_ASSIGN || currentToken.type == TokenType::BITWISE_OR_ASSIGN)
                 {
                     auto assignOp = currentToken.lexeme;
                     advance(); // 吃掉赋值运算符
@@ -2101,10 +2101,22 @@ public:
         ASTNode *condition = nullptr;
         ASTNode *increment = nullptr;
         ASTNode *body = nullptr;
+        Token nextToken = lexer.peektoken();
         if (currentToken.type != TokenType::SEMI)
         {
-            init = statement(false);
-            eat(TokenType::SEMI);
+            if (currentToken.type == TokenType::INT || currentToken.type == TokenType::CHAR || currentToken.type == TokenType::SHORT || currentToken.type == TokenType::LONG || currentToken.type == TokenType::FLOAT || currentToken.type == TokenType::DOUBLE || currentToken.type == TokenType::UNSIGNED || currentToken.type == TokenType::SIGNED || currentToken.type == TokenType::CONST || isStorageType(currentToken.type))
+            {
+                if (debug)
+                {
+                    cout << "for-init-localvar";
+                    printToken(currentToken);
+                    printToken(nextToken);
+                }
+                init = statement(false);
+                eat(TokenType::SEMI);
+            }
+            else
+                init = statement(false);
         }
         if (currentToken.type != TokenType::SEMI)
         {
@@ -2459,7 +2471,10 @@ public:
     ASTNode *ExpressionInFuncCall()
     {
         if (debug)
-            cout << "expressioninfunccall " << currentToken.lexeme << endl;
+        {
+            cout << "expression ";
+            printToken(currentToken);
+        }
         const vector<TokenType> operators = {
             TokenType::OR,
             TokenType::AND,
@@ -2543,7 +2558,16 @@ public:
                         continue;
                     }
                 }
-                valStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme));
+                if (currentToken.type == TokenType::CHAR_CONST)
+                {
+                    valStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme, false, true));
+                }
+                else if (currentToken.type == TokenType::STRING)
+                {
+                    valStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme, true, false));
+                }
+                else
+                    valStack.push(new BinaryExpr(nullptr, nullptr, currentToken.lexeme));
                 advance();
             }
             else if (find(operators.begin(), operators.end(), currentToken.type) != operators.end())

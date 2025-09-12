@@ -68,6 +68,7 @@ int compute(int n)
     } while (j < 3);
 
     /* for 循环 + if 嵌套 */
+    int k;
     for (int k = 0; k < 5; k + 1)
     {
         if (k % 2 == 0)

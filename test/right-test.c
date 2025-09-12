@@ -25,6 +25,9 @@ int main(void)
     int sum = 0;
     int nums[3] = {1, 2, 3};
 
+    num[1]= i;
+    int xx = nums[main() +3];
+
     // 表达式语句 + 算术运算符
     sum = add(nums[0], nums[1]) + nums[2] * 2;
 

@@ -208,11 +208,11 @@ public:
         {
             if (def)
             {
-                def->printToFile(out, indent + 1);
+                def->printToFile(out, indent);
             }
             else
             {
-                out << string(indent + 1, '\t') << "Error: Null ExtDef\n";
+                out << string(indent, '\t') << "Error: Null ExtDef\n";
             }
         }
     }
@@ -437,7 +437,8 @@ public:
     void printToFile(ostream &out, int indent = 0) const override
     {
         out << string(indent, '\t');
-        for(const auto &varType : varDecls[0]->typeName->typeName) {
+        for (const auto &varType : varDecls[0]->typeName->typeName)
+        {
             out << varType << " ";
         }
         for (size_t i = 0; i < varDecls.size(); ++i)
@@ -508,7 +509,8 @@ public:
     void printToFile(ostream &out, int indent = 0) const override
     {
         out << string(indent, '\t');
-        for(const auto &varType : varDecls[0]->typeName->typeName) {
+        for (const auto &varType : varDecls[0]->typeName->typeName)
+        {
             out << varType << " ";
         }
         for (size_t i = 0; i < varDecls.size(); ++i)
@@ -612,7 +614,8 @@ public:
     void printToFile(ostream &out, int indent = 0) const override
     {
         out << string(indent, '\t');
-        for(const auto &varType : returnType->typeName) {
+        for (const auto &varType : returnType->typeName)
+        {
             out << varType << " ";
         }
         out << functionName << "(";
@@ -620,7 +623,8 @@ public:
         {
             if (parameters[i].first)
             {
-                for(const auto &varType : parameters[i].first->typeName) {
+                for (const auto &varType : parameters[i].first->typeName)
+                {
                     out << varType << " ";
                 }
                 out << parameters[i].second;
@@ -710,7 +714,8 @@ public:
         for (size_t i = 0; i < functionNames.size(); ++i)
         {
             out << string(indent, '\t');
-            for(const auto &varType : returnType->typeName) {
+            for (const auto &varType : returnType->typeName)
+            {
                 out << varType << " ";
             }
             out << functionNames[i] << "(";
@@ -718,7 +723,8 @@ public:
             {
                 if (parameters[i][j].first)
                 {
-                    for(const auto &varType : parameters[i][j].first->typeName) {
+                    for (const auto &varType : parameters[i][j].first->typeName)
+                    {
                         out << varType << " ";
                     }
                     out << parameters[i][j].second;
@@ -778,7 +784,8 @@ public:
     void printToFile(ostream &out, int indent = 0) const override
     {
         out << string(indent, '\t') << "typedef ";
-        for(const auto &varType : typeName->typeName) {
+        for (const auto &varType : typeName->typeName)
+        {
             out << varType << " ";
         }
         for (size_t i = 0; i < alias.size(); ++i)
@@ -797,7 +804,7 @@ class CompoundStmt : public ASTNode
 {
 public:
     vector<ASTNode *> statements; // 语句列表
-    CompoundStmt(/*const vector<ASTNode *> &vars, */const vector<ASTNode *> &stmts)
+    CompoundStmt(/*const vector<ASTNode *> &vars, */ const vector<ASTNode *> &stmts)
         : ASTNode(ASTNodeType::CompoundStmt), /*vardecls(vars),*/ statements(stmts) {}
     ~CompoundStmt()
     {
@@ -832,6 +839,8 @@ public:
             if (stmt)
             {
                 stmt->printToFile(out, indent + 1);
+                if (stmt->type == ASTNodeType::BinaryExpr)
+                    out << ";\n";
             }
             else
             {
@@ -845,10 +854,10 @@ public:
 class IfStmt : public ASTNode
 {
 public:
-    ASTNode *condition =nullptr;
+    ASTNode *condition = nullptr;
     ASTNode *thenBranch = nullptr;
     ASTNode *elseBranch = nullptr;
-    IfStmt(ASTNode *cond, ASTNode *thenB, ASTNode *elseB) : ASTNode(ASTNodeType::IfStmt),condition(cond), thenBranch(thenB), elseBranch(elseB) {}
+    IfStmt(ASTNode *cond, ASTNode *thenB, ASTNode *elseB) : ASTNode(ASTNodeType::IfStmt), condition(cond), thenBranch(thenB), elseBranch(elseB) {}
     ~IfStmt()
     {
         if (condition)
@@ -898,7 +907,7 @@ public:
         {
             out << "/* Error: Null Condition */";
         }
-        out << ") ";
+        out << ")\n";
         if (thenBranch)
         {
             thenBranch->printToFile(out, indent);
@@ -909,11 +918,12 @@ public:
         }
         if (elseBranch && elseBranch->type == ASTNodeType::IfStmt)
         {
-            out << "else ";
+            out << string(indent, '\t') << "else ";
             elseBranch->printToFile(out, indent);
         }
         else if (elseBranch)
         {
+            out << string(indent, '\t') << "else ";
             elseBranch->printToFile(out, indent);
         }
         out << "\n";
@@ -1040,7 +1050,7 @@ public:
         {
             out << "/* Error: Null Condition */";
         }
-        out << ") ";
+        out << ")\n";
         if (body)
         {
             body->printToFile(out, indent);
@@ -1100,7 +1110,7 @@ public:
         {
             out << "{ /* Error: Null Body */ }";
         }
-        out << " while (";
+        out <<string(indent,'\t')<< "while (";
         if (condition)
         {
             condition->printToFile(out, 0);
@@ -1195,7 +1205,7 @@ public:
         }
         if (defaultCase)
         {
-            //cout << string(indent + 2, ' ') << "Default Case:\n";
+            // cout << string(indent + 2, ' ') << "Default Case:\n";
             defaultCase->print(indent + 4);
         }
     }
@@ -1414,12 +1424,15 @@ public:
         if (init)
         {
             init->printToFile(out, 0);
+            if(init->type == ASTNodeType::BinaryExpr)
+                out << "; ";
+            else if(init->type == ASTNodeType::LocalVarDecl)
+                out << " ";
         }
         else
         {
             out << "/* Error: Null Initialization */";
         }
-        out << "; ";
         if (condition)
         {
             condition->printToFile(out, 0);
@@ -1534,13 +1547,13 @@ public:
     ASTNode *left = nullptr;
     ASTNode *right = nullptr;
     string op;
-    bool isString=false;
-    bool isChar=false;
+    bool isString = false;
+    bool isChar = false;
     ASTNode *funcCallExpr = nullptr;
     BinaryExpr(ASTNode *l, ASTNode *r, ASTNode *funcCall)
         : ASTNode(ASTNodeType::BinaryExpr), left(l), right(r), funcCallExpr(funcCall) {}
-    BinaryExpr(ASTNode *l, ASTNode *r, const string &o ,bool isStr=false,bool isCh=false)
-        : ASTNode(ASTNodeType::BinaryExpr), left(l), right(r), op(o), isString(isStr),isChar(isCh) {}
+    BinaryExpr(ASTNode *l, ASTNode *r, const string &o, bool isStr = false, bool isCh = false)
+        : ASTNode(ASTNodeType::BinaryExpr), left(l), right(r), op(o), isString(isStr), isChar(isCh) {}
     ~BinaryExpr()
     {
         if (left)
@@ -1582,6 +1595,7 @@ public:
 
     void printToFile(ostream &out, int indent = 0) const override
     {
+        out << string(indent, '\t');
         if (funcCallExpr)
         {
             funcCallExpr->printToFile(out, indent);
@@ -1589,23 +1603,26 @@ public:
         }
         if (left)
         {
-            left->printToFile(out, 0);
+            left->printToFile(out, indent);
         }
         if (!op.empty())
         {
-            if(isString){
-                out << " \"" << op << "\"";
+            if (isString)
+            {
+                out << "\"" << op << "\" ";
             }
-            else if(isChar){
-                out << " '" << op << "'";
+            else if (isChar)
+            {
+                out << "'" << op << "' ";
             }
-            else{
-                out << " " << op;
+            else
+            {
+                out << op << " ";
             }
         }
         if (right)
         {
-            right->printToFile(out, 0);
+            right->printToFile(out, indent);
         }
     }
 };
@@ -1707,8 +1724,8 @@ public:
     string varName;
     string operators;
     ASTNode *value = nullptr;
-    AssignExpr(const string &vname,const string &op, ASTNode *val)
-        : ASTNode(ASTNodeType::AssignExpr),varName(vname),operators(op),  value(val) {}
+    AssignExpr(const string &vname, const string &op, ASTNode *val)
+        : ASTNode(ASTNodeType::AssignExpr), varName(vname), operators(op), value(val) {}
     ~AssignExpr()
     {
         if (value)
