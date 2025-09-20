@@ -168,6 +168,8 @@ public:
     virtual ~ASTNode() = default;
     virtual void print(int indent = 0) const = 0;
     virtual void printToFile(ostream &out, int indent = 0) const = 0;
+    virtual void printInForLoop(ostream &out, int indent = 0) const { /* Default implementation does nothing */ }
+    virtual void printElseIf(ostream &out, int indent = 0) const { /* Default implementation does nothing */ }
 };
 
 class ProgramNode : public ASTNode
@@ -471,6 +473,45 @@ public:
             }
         }
         out << ";\n";
+    }
+
+    void printInForLoop(ostream &out, int indent = 0) const
+    {
+        out << string(indent, '\t');
+        for (const auto &varType : varDecls[0]->typeName->typeName)
+        {
+            out << varType << " ";
+        }
+        for (size_t i = 0; i < varDecls.size(); ++i)
+        {
+            if (varDecls[i])
+            {
+                out << varDecls[i]->name;
+                for (const auto &size : varDecls[i]->arraySizes)
+                {
+                    out << "[";
+                    if (size)
+                    {
+                        size->printToFile(out, 0);
+                    }
+                    out << "]";
+                }
+                if (varDecls[i]->init)
+                {
+                    out << " = ";
+                    varDecls[i]->init->printToFile(out, 0);
+                }
+            }
+            else
+            {
+                out << "/* Error: Null VarDecl */";
+            }
+            if (i < varDecls.size() - 1)
+            {
+                out << ", ";
+            }
+        }
+        out << ";";
     }
 };
 
@@ -857,6 +898,7 @@ public:
     ASTNode *condition = nullptr;
     ASTNode *thenBranch = nullptr;
     ASTNode *elseBranch = nullptr;
+    vector<ASTNode *> elseifBranches; // 支持多个 else if 分支
     IfStmt(ASTNode *cond, ASTNode *thenB, ASTNode *elseB) : ASTNode(ASTNodeType::IfStmt), condition(cond), thenBranch(thenB), elseBranch(elseB) {}
     ~IfStmt()
     {
@@ -889,10 +931,15 @@ public:
         {
             cout << string(indent + 2, ' ') << "Error: Null Then Branch\n";
         }
-        if (elseBranch)
+        if (elseBranch && elseBranch->type == ASTNodeType::IfStmt)
         {
-            cout << string(indent + 2, ' ') << "Else Branch:\n";
-            elseBranch->print(indent + 2);
+            cout << string(indent, ' ') << "Else If Branch:\n";
+            elseBranch->print(indent);
+        }
+        else if (elseBranch)
+        {
+            cout << string(indent, ' ') << "Else Branch:\n";
+            elseBranch->print(indent);
         }
     }
 
@@ -910,7 +957,16 @@ public:
         out << ")\n";
         if (thenBranch)
         {
-            thenBranch->printToFile(out, indent);
+            if (thenBranch->type == ASTNodeType::BinaryExpr)
+            {
+                out << string(indent + 1, '\t');
+                thenBranch->printToFile(out, 0);
+                out << ";\n";
+            }
+            else
+            {
+                thenBranch->printToFile(out, indent);
+            }
         }
         else
         {
@@ -919,7 +975,7 @@ public:
         if (elseBranch && elseBranch->type == ASTNodeType::IfStmt)
         {
             out << string(indent, '\t') << "else ";
-            elseBranch->printToFile(out, indent);
+            elseBranch->printElseIf(out, indent);
         }
         else if (elseBranch)
         {
@@ -927,6 +983,47 @@ public:
             elseBranch->printToFile(out, indent);
         }
         out << "\n";
+    }
+
+    void printElseIf(ostream &out, int indent = 0) const
+    {
+        out << "if (";
+        if (condition)
+        {
+            condition->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Condition */";
+        }
+        out << ")\n";
+        if (thenBranch)
+        {
+            if (thenBranch->type == ASTNodeType::BinaryExpr)
+            {
+                out << string(indent + 1, '\t');
+                thenBranch->printToFile(out, 0);
+                out << ";\n";
+            }
+            else
+            {
+                thenBranch->printToFile(out, indent);
+            }
+        }
+        else
+        {
+            out << "{ /* Error: Null Then Branch */ }";
+        }
+        if (elseBranch && elseBranch->type == ASTNodeType::IfStmt)
+        {
+            out << string(indent, '\t') << "else ";
+            elseBranch->printElseIf(out, indent);
+        }
+        else if (elseBranch)
+        {
+            out << string(indent, '\t') << "else ";
+            elseBranch->printToFile(out, indent);
+        }
     }
 };
 
@@ -1053,7 +1150,16 @@ public:
         out << ")\n";
         if (body)
         {
-            body->printToFile(out, indent);
+            if(body->type == ASTNodeType::BinaryExpr)
+            {
+                out << string(indent + 1, '\t');
+                body->printToFile(out, 0);
+                out << ";\n";
+            }
+            else
+            {
+                body->printToFile(out, indent);
+            }
         }
         else
         {
@@ -1110,7 +1216,7 @@ public:
         {
             out << "{ /* Error: Null Body */ }";
         }
-        out <<string(indent,'\t')<< "while (";
+        out << string(indent, '\t') << "while (";
         if (condition)
         {
             condition->printToFile(out, 0);
@@ -1423,11 +1529,17 @@ public:
         out << string(indent, '\t') << "for (";
         if (init)
         {
-            init->printToFile(out, 0);
-            if(init->type == ASTNodeType::BinaryExpr)
+
+            if (init->type == ASTNodeType::BinaryExpr)
+            {
+                init->printToFile(out, 0);
                 out << "; ";
-            else if(init->type == ASTNodeType::LocalVarDecl)
+            }
+            else if (init->type == ASTNodeType::LocalVarDecl)
+            {
+                init->printInForLoop(out, 0);
                 out << " ";
+            }
         }
         else
         {
@@ -1444,16 +1556,32 @@ public:
         out << "; ";
         if (increment)
         {
-            increment->printToFile(out, 0);
+            if(increment->type == ASTNodeType::AssignExpr)
+            {
+                increment->printInForLoop(out, 0);
+            }
+            else
+            {
+                increment->printToFile(out, 0);
+            }
         }
         else
         {
             out << "/* Error: Null Increment */";
         }
-        out << ") ";
+        out << ")\n";
         if (body)
         {
-            body->printToFile(out, indent);
+            if(body->type == ASTNodeType::BinaryExpr)
+            {
+                out << string(indent + 1, '\t');
+                body->printToFile(out, 0);
+                out << ";\n";
+            }
+            else
+            {
+                body->printToFile(out, indent);
+            }
         }
         else
         {
@@ -1648,6 +1776,7 @@ public:
     }
 };
 
+// 未使用
 class Identifier : public ASTNode
 {
     // 标识符
@@ -1758,5 +1887,17 @@ public:
             out << "/* Error: Null Value */";
         }
         out << ";\n";
+    }
+    void printInForLoop(ostream &out, int indent = 0) const
+    {
+        out << string(indent, '\t') << varName << " " << operators << " ";
+        if (value)
+        {
+            value->printToFile(out, 0);
+        }
+        else
+        {
+            out << "/* Error: Null Value */";
+        }
     }
 };

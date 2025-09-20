@@ -1,18 +1,73 @@
 #include <stdio.h>
+int global_var = 10 ;
+void test_statements(int x) {
+	int local_var = x ;
+	int i;
+		i == 	1 ;
+	local_var = local_var + global_var ;
+	{
+		int inner_var = 5 ;
+		inner_var = local_var ;
+		printf("Inner block: %d\n" , inner_var );
+	}
+	for (int i = 0 ; i < 1 ; i + 1 )
+		printf("a" );
+
+	while (x == 1 )
+		i ;
+
+	if (local_var > 0 )
+		printf("Positive value: %d\n" , local_var );
+
+	if (local_var % 2 == 0 )
+	{
+		printf("Even value: %d\n" , local_var );
+	}
+	else if (x )
+	{
+		printf("Odd value: %d\n" , local_var );
+	}
+
+	int i = 0 ;
+	while (i < 5 )
+	{
+		if (i == 2 )
+		{
+			i ;
+			continue;
+		}
+
+		if (i == 4 )
+		{
+			break;
+		}
+
+		printf("while: i = %d\n" , i );
+		i ;
+	}
+
+	for (int j = 0 ; j < 3 ; j + 1 )
+	{
+		if (j == 1 )
+		{
+			printf("for: j = %d (special)\n" , j );
+		}
+		else 		{
+			printf("for: j = %d\n" , j );
+		}
+
+	}
+
+	return;
+}
+int main() {
+	test_statements(7 );
+	return 0 ;
+}
+#include <stdio.h>
 int global_var = 100 ;
 int compute(int n) {
 	int sum = 0 ;
-	switch (sum ) {
-		case 1 :
-			break;
-		case 2 :
-			int i = 1 ;
-			;
-			i += 1 ;
-			break;
-		default:
-			break;
-	}
 	sum = sum + global_var ;
 	if (n < 0 )
 	n = n ;
@@ -22,9 +77,9 @@ int compute(int n) {
 		printf("n is even: %d\n" , n );
 	}
 	else if (__x86_64 )
+	{
 		printf("n is odd: %d\n" , n );
-	else if (n )
-		n + 1 ;
+	}
 
 	int i = 0 ;
 	while (i < n )
@@ -41,7 +96,7 @@ int compute(int n) {
 		}
 
 		sum += i ;
-				printf("while: i = %d\n" , i )+ 		1 ;
+		printf("while: i = %d\n" , i );
 		i ;
 	}
 
@@ -51,7 +106,6 @@ int compute(int n) {
 		j ;
 	}
 	while (j < 3 );
-	int k;
 	for (int k = 0 ; k < 5 ; k + 1 )
 	{
 		if (k % 2 == 0 )
@@ -74,7 +128,6 @@ int compute(int n) {
 	{
 		int inner = 42 ;
 		{
-			float sdan = 111 ;
 			int deeper = inner + sum ;
 			printf("nested block: deeper = %d\n" , deeper );
 		}

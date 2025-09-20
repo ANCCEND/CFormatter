@@ -37,9 +37,9 @@ int compute(int n)
         printf("n is even: %d\n", n);
     }
     else if (__x86_64)
-    {
         printf("n is odd: %d\n", n);
-    }
+    else if(n)
+        n+1;
 
     /* while 循环，带 continue 和 break */
     int i = 0;
@@ -55,7 +55,7 @@ int compute(int n)
             break;
         }
         sum += i;
-        printf("while: i = %d\n", i);
+        printf("while: i = %d\n", i) + 1;
         i;
     }
 

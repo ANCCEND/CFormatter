@@ -14,7 +14,8 @@ int main(int argc, char *argv[])
     string outfilename;
     if (argc < 2)
     {
-        cerr << "Usage: " << argv[0] << " <source_file.c>" << endl;
+        cerr << "Error: No input file specified." << endl;
+        cerr << "Usage: " << argv[0] << " <source_file.c>" << "-argument" << endl;
         return 1;
     }
     else if (argc > 4)

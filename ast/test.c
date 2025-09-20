@@ -1,60 +1,90 @@
 #include <stdio.h>
-#define PI 3.14
-int globalVar = 10 ;
-const int MAX = 100 ;
-int arr[5 ];
-int add(int a, int b);
-void printMessage();
-int main() {
-	int i = 0 ;
+int global_var = 100 ;
+int compute(int n) {
 	int sum = 0 ;
-	int nums[3 ] = { 1 , 2 , 3  };
-	num[1] = i ;
-	int xx = nums[main()+3] ;
-	sum = add(nums[0] , nums[1] )+ nums[2] * 2 ;
-	if (sum > MAX )
-	{
-		sum = MAX ;
+	switch (sum ) {
+		case 1 :
+			break;
+		case 2 :
+			int i = 1 ;
+			;
+			i += 1 ;
+			break;
+		default:
+			break;
 	}
+	sum = sum + global_var ;
+	if (n < 0 )
+	n = n ;
 
-	if (sum == 0 )
+	if (n % 2 == 0 )
 	{
-		printMessage();
+		printf("n is even: %d\n" , n );
 	}
-	else 	if (sum == 1 )
+	else if (__x86_64 )
+	printf("n is odd: %d\n" , n );
+	else if (n )
+		n + 	1 ;
+
+
+
+	int i = 0 ;
+	while (i < n )
 	{
-		sum = sum + 1 ;
-	}
-	else 	return 1 ;
-
-
-	while (i < 5 )
-	{
-		sum = sum + i ;
-		i = i + 1 ;
-	}
-
-	for (int i[2 ] = { 1 , 2  };
- i < 5 ; i[1] = i + 1 ;
-) 	{
-		if (i == 3 )
+		if (i == 2 )
 		{
+			i ;
 			continue;
 		}
 
-		if (i == 4 )
+		if (i == 5 )
 		{
 			break;
 		}
 
-		sum = sum + i ;
+		sum += i ;
+				printf("while: i = %d\n" , i )+ 		1 ;
+		i ;
 	}
 
+	int j = 0 ;
+	do 	{
+		printf("do-while: j = %d\n" , j );
+		j ;
+	}
+	while (j < 3 );
+	int k;
+	for (int k = 0 ; k < 5 ; k + 1 )
+	{
+		if (k % 2 == 0 )
+		{
+			printf("for: k = %d (even)\n" , k );
+		}
+		else 		{
+			printf("for: k = %d (odd)\n" , k );
+		}
+
+		int m = 0 ;
+		while (m < 2 )
+		{
+			printf("nested while: k = %d, m = %d\n" , k , m );
+			m ;
+		}
+
+	}
+
+	{
+		int inner = 42 ;
+		{
+			float sdan = 111 ;
+			int deeper = inner + sum ;
+			printf("nested block: deeper = %d\n" , deeper );
+		}
+	}
 	return sum ;
 }
-int add(int a, int b) {
-	return a + b ;
-}
-void printMessage() {
-	printf("Hello, C subset test!\n" );
+int main() {
+	int result = compute(7 );
+	printf("Final result = %d\n" , result );
+	return 0 ;
 }

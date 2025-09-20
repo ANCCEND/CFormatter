@@ -480,29 +480,6 @@ public:
                     lexeme += ch;
                     return Token(TokenType::ERROR, lexeme, tokenLine, tokenColumn);
                 }
-                /*if (ch == '\\')
-                {
-                    next();
-                    if (ch == EOF)
-                    {
-                        return Token(TokenType::ERROR, "", tokenLine, tokenColumn);
-                    }
-                    switch (ch)
-                    {
-                    case 'n':
-                        ch = '\n';
-                        break;
-                    case 't':
-                        ch = '\\t';
-                        break;
-                    case '\\':
-                        ch = '\\';
-                        break;
-                    case '"':
-                        ch = '"';
-                        break;
-                    }
-                }*/
                 lexeme += ch;
                 next();
             }
@@ -2244,7 +2221,7 @@ public:
         return new AssignExpr(indentifier, op, expr);
     }
 
-    ASTNode *funcCall(Token nextToken)
+    FuncCallExpr *funcCall(Token nextToken)
     {
         if (debug)
             cout << "funccall" << endl;
