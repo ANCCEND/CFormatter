@@ -168,8 +168,8 @@ public:
     virtual ~ASTNode() = default;
     virtual void print(int indent = 0) const = 0;
     virtual void printToFile(ostream &out, int indent = 0) const = 0;
-    virtual void printInForLoop(ostream &out, int indent = 0) const { /* Default implementation does nothing */ }
-    virtual void printElseIf(ostream &out, int indent = 0) const { /* Default implementation does nothing */ }
+    virtual void printInForLoop(ostream &out, int indent = 0) const {}
+    virtual void printElseIf(ostream &out, int indent = 0) const {}
 };
 
 class ProgramNode : public ASTNode
@@ -1773,24 +1773,6 @@ public:
     void printToFile(ostream &out, int indent = 0) const override
     {
         out << value;
-    }
-};
-
-// 未使用
-class Identifier : public ASTNode
-{
-    // 标识符
-public:
-    string name;
-    Identifier(const string &n)
-        : ASTNode(ASTNodeType::Identifier), name(n) {}
-    void print(int indent = 0) const override
-    {
-        cout << string(indent, ' ') << "Identifier: " << name << "\n";
-    }
-    void printToFile(ostream &out, int indent = 0) const override
-    {
-        out << name;
     }
 };
 

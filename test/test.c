@@ -1,4 +1,5 @@
 #include <stdio.h>
+#define X 123
 
 /* 外部变量说明语句 */
 int global_var = 100;

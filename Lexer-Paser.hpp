@@ -159,38 +159,6 @@ static const unordered_map<TokenType, string> TokenMap{
     {TokenType::END_OF_FILE, "END_OF_FILE"},
 };
 
-/*const vector<string> operators = {
-    "+",
-    "-",
-    "*",
-    "/",
-    "%",
-    "++",
-    "--",
-    "=",
-    "+=",
-    "-=",
-    "*=",
-    "/=",
-    "%=",
-    "<",
-    ">",
-    "=",
-    "<=",
-    ">=",
-    "==",
-    "!=",
-    "&&",
-    "||",
-    "!",
-    "&",
-    "|",
-    "~",
-    "<<",
-    ">>",
-    "->",
-};*/
-
 const vector<TokenType> constants = {
     TokenType::INT_CONST, TokenType::FLOAT_CONST, TokenType::CHAR_CONST, TokenType::STRING, TokenType::IDENTIFIER, TokenType::LONG_CONST, TokenType::DOUBLE_CONST, TokenType::LONG_LONG_CONST, TokenType::UNSIGNED_LONG_CONST, TokenType::UNSIGNED_LONG_LONG_CONST};
 

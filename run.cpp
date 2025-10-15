@@ -4,7 +4,7 @@
 #include <cctype>
 #include <vector>
 #include <algorithm>
-#include "../lexer-parser/Lexer-Paser.hpp"
+#include "Lexer-Paser.hpp"
 
 using namespace std;
 
